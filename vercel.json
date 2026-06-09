@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/twitch",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/event",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

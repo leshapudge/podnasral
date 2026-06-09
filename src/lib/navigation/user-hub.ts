@@ -1,0 +1,10 @@
+import type { UserRole } from "@prisma/client";
+
+/** Куда вести стримера/админа по клику на аватар в шапке OS. */
+export function isStreamerHubRole(role?: UserRole | null): boolean {
+  return role === "STREAMER" || role === "ADMIN";
+}
+
+export function streamerHubPath(role?: UserRole | null): string | null {
+  return isStreamerHubRole(role) ? "/streamer" : null;
+}

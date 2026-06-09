@@ -1,0 +1,635 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-silkscreen), ui-monospace, monospace;
+
+  --color-background: #070b12;
+  --color-foreground: #f0f4f8;
+
+  --color-card: #0d1219;
+  --color-card-foreground: #f0f4f8;
+
+  --color-primary: #55c57a;
+  --color-primary-foreground: #041208;
+
+  --color-secondary: #1a2332;
+  --color-secondary-foreground: #c8d6e5;
+
+  --color-muted: #141c28;
+  --color-muted-foreground: #7a8ba3;
+
+  --color-accent: #ffaa00;
+  --color-accent-foreground: #1a0f00;
+
+  --color-destructive: #ef4444;
+  --color-border: #1e2d3d;
+  --color-input: #1e2d3d;
+  --color-ring: #55c57a;
+
+  --color-hypixel-gold: #ffaa00;
+  --color-hypixel-gold-light: #ffd666;
+  --color-mc-grass: #55c57a;
+  --color-mc-grass-dark: #3d8f5a;
+  --color-mc-dirt: #8b6914;
+  --color-mc-stone: #7a8ba3;
+  --color-mc-diamond: #4eeaff;
+  --color-mc-redstone: #ff5555;
+  --color-boss: #ff6b35;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ffd666 0%, #ffaa00 50%, #ff8800 100%);
+  }
+
+  .text-gradient-emerald {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #7dffb3 0%, #55c57a 50%, #3d8f5a 100%);
+  }
+
+  .glass-panel {
+    @apply border border-white/10 bg-white/5 backdrop-blur-xl;
+  }
+
+  .mc-border {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+      0 4px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .mc-border-gold {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 214, 102, 0.3),
+      inset 0 -2px 0 rgba(139, 90, 0, 0.5),
+      0 4px 0 rgba(100, 65, 0, 0.6);
+  }
+
+  .grid-pattern {
+    background-image:
+      linear-gradient(rgba(85, 197, 122, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(85, 197, 122, 0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .noise-overlay {
+    position: relative;
+  }
+
+  .world-map-flow .react-flow__edge-path {
+    stroke-linecap: round;
+  }
+
+  .world-map-flow .react-flow__node-marker {
+    pointer-events: all;
+  }
+
+  .os-desktop {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 0%, rgba(85, 197, 122, 0.04), transparent 50%),
+      #030303;
+  }
+
+  html:has(.mc-os-desktop),
+  body:has(.mc-os-desktop) {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .mc-os-desktop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    background: linear-gradient(
+      180deg,
+      #4a90c2 0%,
+      #6eb5e8 28%,
+      #87ceeb 38%,
+      #55c57a 38%,
+      #3d8f5a 62%,
+      #2d5a27 100%
+    );
+  }
+
+  .mc-os-desktop-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.12) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.08) 2px, transparent 2px);
+    background-size: 16px 16px;
+  }
+
+  .mc-os-desktop-ui {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mc-os-desktop-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.75rem;
+    padding: 1.5rem 1.5rem 4.5rem;
+  }
+
+  .mc-os-grass-block-btn {
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .mc-os-grass-block-btn:not(:disabled):hover {
+    transform: scale(1.04);
+    filter: brightness(1.08);
+  }
+
+  .mc-os-grass-block-btn:not(:disabled):active {
+    transform: scale(0.98);
+  }
+
+  .mc-os-taskbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 2.75rem;
+    padding: 0.25rem 0.35rem;
+    background: linear-gradient(180deg, #4a3c2a 0%, #2a2118 55%, #1a1208 100%);
+    border-top: 2px solid #5c4a32;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .mc-os-start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 2.25rem;
+    padding: 0 0.85rem 0 0.55rem;
+    border: 2px solid #1a1208;
+    background: linear-gradient(180deg, #55c57a 0%, #3d8f5a 45%, #2d5a27 100%);
+    color: #fff;
+    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      2px 2px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  .mc-os-start-btn:hover,
+  .mc-os-start-btn--active {
+    filter: brightness(1.1);
+    border-color: #e8d5b0;
+  }
+
+  .mc-os-start-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 4px);
+    z-index: 10;
+    width: min(280px, calc(100vw - 1rem));
+    overflow: hidden;
+    border: 2px solid #1a1208;
+    background: linear-gradient(180deg, #2a2118 0%, #14100c 100%);
+    box-shadow:
+      0 0 0 1px #5c4a32,
+      0 12px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  .mc-os-start-menu-header {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #1a1208;
+    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #7a6a52;
+    background: #1a1208;
+  }
+
+  .mc-os-start-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border: none;
+    background: transparent;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .mc-os-start-menu-item:hover:not(:disabled) {
+    background: rgba(85, 197, 122, 0.12);
+  }
+
+  .mc-os-start-menu-item:disabled {
+    opacity: 0.45;
+    cursor: wait;
+  }
+
+  .mc-os-start-menu-icon {
+    display: flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .mc-os-taskbar-tray {
+    display: flex;
+    align-items: center;
+    height: 2rem;
+    padding: 0 0.65rem;
+    border: 1px solid #1a1208;
+    background: linear-gradient(180deg, #3d3024 0%, #2a2118 100%);
+    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-size: 11px;
+  }
+
+  .boss-arena-card {
+    border-radius: 6px;
+    border: 2px solid rgba(160, 90, 220, 0.35);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 35%, rgba(100, 50, 150, 0.45) 0%, transparent 70%),
+      linear-gradient(180deg, #2a1848 0%, #1a1028 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 8px 32px rgba(80, 30, 140, 0.25);
+  }
+
+  .boss-dragon-portrait {
+    position: relative;
+    display: flex;
+    width: min(100%, 340px);
+    height: 200px;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .boss-dragon-glow {
+    position: absolute;
+    inset: 5% 8%;
+    z-index: 0;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(180, 100, 255, 0.28) 0%,
+      rgba(120, 50, 180, 0.12) 45%,
+      transparent 72%
+    );
+    animation: boss-dragon-glow-pulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes boss-dragon-glow-pulse {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: scale(0.92);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+  }
+
+  .boss-dragon-particles {
+    position: absolute;
+    inset: -12px;
+    z-index: 20;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .boss-dragon-particle {
+    position: absolute;
+    border-radius: 1px;
+    background: #e0aaff;
+    box-shadow:
+      0 0 6px #d946ff,
+      0 0 14px rgba(180, 70, 255, 0.95),
+      0 0 22px rgba(120, 40, 200, 0.5);
+    animation: boss-dragon-particle-float var(--dur, 2.2s) ease-out infinite;
+    animation-delay: var(--delay, 0s);
+    opacity: 0;
+  }
+
+  @keyframes boss-dragon-particle-float {
+    0% {
+      transform: translate(0, 0) scale(0.35);
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    70% {
+      opacity: 0.85;
+    }
+    100% {
+      transform: translate(var(--drift-x, 0px), var(--drift-y, -40px)) scale(0.15);
+      opacity: 0;
+    }
+  }
+
+  .boss-dragon-image-wrap {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .boss-dragon-image {
+    width: auto !important;
+    height: min(185px, 46vw) !important;
+    max-width: 100%;
+    filter: drop-shadow(0 0 20px rgba(160, 80, 255, 0.45))
+      drop-shadow(0 12px 16px rgba(0, 0, 0, 0.35));
+  }
+
+  .mc-os-boot-hint {
+    margin: 0;
+    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(232, 213, 176, 0.85);
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+  }
+
+  @media (min-width: 640px) {
+    .mc-os-boot-hint {
+      font-size: 13px;
+    }
+  }
+
+  .mc-os-boot-hint--pulse {
+    animation: mc-boot-blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes mc-boot-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .mc-os-desktop-window {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    align-items: stretch;
+    justify-content: center;
+    padding: 0.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .mc-os-desktop-window {
+      padding: 1rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .mc-os-desktop-window {
+      padding: 1.5rem;
+    }
+  }
+
+  .mc-os-wrap--desktop {
+    width: 100%;
+    max-width: 1600px;
+    height: 100%;
+    max-height: 100%;
+    margin: 0 auto;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    padding: 0;
+  }
+
+  .mc-os-monitor.mc-os-monitor--desktop {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  /* ── MINESEASON OS (Minecraft GUI aesthetic) ── */
+  .mc-os-scene {
+    background: #0a1628;
+  }
+
+  .mc-os-backdrop {
+    background:
+      linear-gradient(180deg, #4a90c2 0%, #87ceeb 18%, #55c57a 18%, #3d8f5a 45%, #2d5a27 100%);
+    opacity: 0.35;
+    filter: blur(1px);
+  }
+
+  .mc-os-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.15) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.1) 2px, transparent 2px);
+    background-size: 16px 16px;
+    opacity: 0.4;
+  }
+
+  .mc-os-monitor {
+    background: linear-gradient(180deg, #3d3024 0%, #2a2118 8%, #1a1208 100%);
+    border: 4px solid #1a1208;
+    box-shadow:
+      inset 0 0 0 2px #5c4a32,
+      inset 0 2px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 3px #0d0a08,
+      0 24px 80px rgba(0, 0, 0, 0.65);
+    border-radius: 6px;
+  }
+
+  .mc-os-panel {
+    background: linear-gradient(180deg, #1f1810 0%, #14100c 100%);
+  }
+
+  .mc-tab-active {
+    background: linear-gradient(180deg, #2a2118 0%, #1a1208 100%);
+  }
+
+  .mc-tab-active::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: #55c57a;
+  }
+
+  .mc-slot {
+    background-color: #1a1a1a;
+    background-image: url("/assets/mc/slot.svg");
+    background-size: cover;
+    border: 2px solid #373737;
+    box-shadow:
+      inset 2px 2px 0 #0a0a0a,
+      inset -1px -1px 0 #4a4a4a;
+  }
+
+  .game-cover-frame {
+    background-color: #0d0a08;
+    border: 2px solid #373737;
+    box-shadow:
+      inset 0 0 0 1px #1a1a1a,
+      0 2px 0 #0a0a0a;
+  }
+
+  .mc-pixel-image {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .mc-enchanted::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      125deg,
+      transparent 30%,
+      rgba(127, 255, 212, 0.35) 45%,
+      rgba(255, 100, 255, 0.25) 55%,
+      transparent 70%
+    );
+    background-size: 200% 200%;
+    animation: mc-glint 2.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes mc-glint {
+    0%,
+    100% {
+      background-position: 0% 50%;
+      opacity: 0.4;
+    }
+    50% {
+      background-position: 100% 50%;
+      opacity: 0.9;
+    }
+  }
+
+  .mc-slot-active {
+    border-color: #4a7c3f;
+    box-shadow:
+      inset 2px 2px 0 #0a0a0a,
+      inset -1px -1px 0 #6fcf97,
+      0 0 12px rgba(85, 197, 122, 0.25);
+  }
+
+  .mc-os-btn {
+    border: 2px solid #5c4a32;
+    background: linear-gradient(180deg, #4a3c2a 0%, #2a2118 100%);
+    color: #e8d5b0;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: filter 0.15s, border-color 0.15s;
+  }
+
+  .mc-os-btn:hover {
+    filter: brightness(1.12);
+    border-color: #55c57a;
+  }
+
+  .mc-timer {
+    text-shadow: 0 0 20px rgba(85, 197, 122, 0.3);
+  }
+
+  .mc-platform-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #a89070;
+    background: #1a1a1a;
+    border: 1px solid #373737;
+  }
+
+  .os-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  .os-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .os-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+  }
+
+  .noise-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+}

@@ -1,0 +1,492 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { Circle, Clock, Gamepad2, Sparkles, Star, Timer, Trophy } from "lucide-react";
+import { McAvatar } from "../mc-avatar";
+import { McItemSlot } from "../mc-item-slot";
+import { ItemDetailPopup } from "../item-detail-popup";
+import { TwitchStreamButton } from "../twitch-stream-button";
+import { OsEventBanner } from "../os-event-banner";
+import { OsPanelFrame } from "../os-panel-frame";
+import { OsSectionTitle } from "../os-section-title";
+import type { HomeSeasonData } from "@/lib/landing/home-data.types";
+import { Progress } from "@/components/ui/progress";
+import {
+  api,
+  type LeaderboardEntry,
+  type ParticipantDetail,
+  type ParticipantInventoryItem,
+} from "@/lib/api/client";
+import { resolveGameCover } from "@/lib/landing/game-covers";
+import { summarizeItemEffects } from "@/lib/inventory/item-effects";
+import { getItemTexture } from "@/lib/inventory/item-assets";
+import { rarityConfig } from "@/lib/inventory/rarity";
+import { formatDurationMs, formatHltbHours } from "@/lib/utils/time";
+import { formatNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+
+const STATUS_LABELS: Record<string, string> = {
+  IDLE: "Участник",
+  AUCTIONING: "Аукцион",
+  AWAITING_DIFFICULTY: "Выбор сложности",
+  PLAYING: "В игре",
+  PAUSED: "Пауза",
+  COMPLETED: "Игра пройдена",
+  DROPPED: "Дроп",
+  CASINO: "Казино",
+};
+
+function sortStreamers(list: LeaderboardEntry[]) {
+  return [...list].sort((a, b) => {
+    if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+    return a.rank - b.rank;
+  });
+}
+
+interface StreamersHubPanelProps {
+  initialLeaderboard?: LeaderboardEntry[];
+  season?: HomeSeasonData | null;
+}
+
+export function StreamersHubPanel({
+  initialLeaderboard = [],
+  season = null,
+}: StreamersHubPanelProps) {
+  const eventUpcoming = season?.isUpcoming ?? false;
+  const [streamers, setStreamers] = useState<LeaderboardEntry[]>(initialLeaderboard);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ParticipantDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [popupItem, setPopupItem] = useState<ParticipantInventoryItem | null>(null);
+  const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
+
+  const openItemPopup = (item: ParticipantInventoryItem, el: HTMLElement) => {
+    setPopupItem(item);
+    setPopupAnchor(el.getBoundingClientRect());
+  };
+
+  const closeItemPopup = () => {
+    setPopupItem(null);
+    setPopupAnchor(null);
+  };
+
+  const sorted = useMemo(() => sortStreamers(streamers), [streamers]);
+
+  const refreshList = useCallback(async () => {
+    try {
+      const list = await api.getLeaderboard();
+      setStreamers(list ?? []);
+    } catch {
+      /* keep cached */
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshList();
+    const interval = setInterval(refreshList, 15000);
+    return () => clearInterval(interval);
+  }, [refreshList]);
+
+  useEffect(() => {
+    if (!selectedId && sorted.length > 0) {
+      setSelectedId(sorted[0].id);
+    }
+  }, [sorted, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingDetail(true);
+
+    api
+      .getParticipant(selectedId)
+      .then((data) => {
+        if (!cancelled) setDetail(data);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDetail(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  const selectedListItem = sorted.find((s) => s.id === selectedId);
+  const modifiers = detail?.inventory.filter((i) => i.kind === "MODIFIER") ?? [];
+  const otherItems = detail?.inventory.filter((i) => i.kind !== "MODIFIER") ?? [];
+  return (
+    <OsPanelFrame className="!overflow-hidden !p-0">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        {/* Список стримеров */}
+        <aside className="flex w-full min-h-0 max-h-[38vh] shrink-0 flex-col overflow-hidden border-b border-[#1a1208] lg:max-h-none lg:w-72 lg:flex-none lg:border-b-0 lg:border-r">
+          <div className="border-b border-[#1a1208] px-4 py-3">
+            <h2 className="font-display text-xs uppercase tracking-widest text-[#a89070]">
+              Участники
+            </h2>
+            <p className="mt-1 text-[10px] text-[#5c4a32]">
+              {sorted.filter((s) => s.isLive).length} в эфире · {sorted.length} всего
+            </p>
+          </div>
+          <ul className="os-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+            {sorted.map((s) => {
+              const active = s.id === selectedId;
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(s.id)}
+                    className={cn(
+                      "mb-1 flex w-full items-center gap-3 rounded border px-2 py-2 text-left transition-colors",
+                      active
+                        ? "border-primary/50 bg-primary/10"
+                        : "border-transparent bg-[#1a1208]/30 hover:border-[#1a1208] hover:bg-[#1a1208]/60",
+                    )}
+                  >
+                    <div className="relative shrink-0">
+                      <McAvatar
+                        nickname={s.nickname}
+                        twitchLogin={s.twitchLogin}
+                        src={s.avatar}
+                        size={32}
+                      />
+                      {s.isLive && (
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#14100c] bg-primary"
+                          title="В эфире"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[#e8d5b0]">{s.nickname}</p>
+                      <p className="truncate text-[10px] text-[#7a6a52]">
+                        {s.isLive ? (
+                          <span className="text-primary">● LIVE</span>
+                        ) : eventUpcoming ? (
+                          "Участник"
+                        ) : (
+                          STATUS_LABELS[s.status] ?? s.status
+                        )}
+                        {!eventUpcoming && s.currentGame ? ` · ${s.currentGame.title}` : ""}
+                      </p>
+                    </div>
+                    <span className="font-display text-[10px] text-hypixel-gold">#{s.rank}</span>
+                  </button>
+                </li>
+              );
+            })}
+            {sorted.length === 0 && (
+              <p className="p-4 text-center text-sm text-[#7a6a52]">Нет участников</p>
+            )}
+          </ul>
+        </aside>
+
+        {/* Детали стримера */}
+        <div className="os-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <OsEventBanner season={season} className="mb-4" />
+
+          {!selectedListItem && (
+            <p className="text-center text-sm text-[#7a6a52]">Выберите стримера</p>
+          )}
+
+          {selectedListItem && loadingDetail && !detail && (
+            <p className="text-center text-sm text-[#7a6a52]">Загрузка...</p>
+          )}
+
+          {selectedListItem && detail && (
+            <div className="relative space-y-5">
+              {detail.twitchLogin && (
+                <TwitchStreamButton
+                  login={detail.twitchLogin}
+                  isLive={detail.isLive}
+                  variant="icon"
+                  className="absolute right-0 top-0 h-7 w-7"
+                />
+              )}
+              {/* Профиль + голова MC */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start pr-9">
+                <div className="mx-auto shrink-0 sm:mx-0">
+                  <McAvatar
+                    nickname={detail.nickname}
+                    twitchLogin={detail.twitchLogin}
+                    src={detail.avatar}
+                    size={64}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <h3 className="font-display text-xl text-[#e8d5b0]">{detail.nickname}</h3>
+                    {detail.isLive && (
+                      <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] uppercase text-primary">
+                        <Circle className="h-2 w-2 fill-current" />
+                        В эфире
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-hypixel-gold">
+                    {formatNumber(detail.totalPoints)} очков · #{selectedListItem.rank}
+                  </p>
+                  <p className="mt-1 text-xs text-[#7a6a52]">
+                    {STATUS_LABELS[detail.status] ?? detail.status}
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-3 sm:justify-start">
+                    <div className="mc-stat-card">
+                      <Trophy className="h-4 w-4 text-hypixel-gold" />
+                      <div>
+                        <p className="text-[10px] text-[#7a6a52]">Пройдено</p>
+                        <p className="font-display text-sm text-[#e8d5b0]">
+                          {detail.stats.gamesCompleted}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mc-stat-card">
+                      <Gamepad2 className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-[10px] text-[#7a6a52]">Игр</p>
+                        <p className="font-display text-sm text-[#e8d5b0]">
+                          {detail.stats.gamesPlayed}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Текущая игра */}
+              <section className="rounded border border-[#1a1208] bg-[#1a1208]/50 p-4">
+                <OsSectionTitle className="!mt-0">Сейчас играет</OsSectionTitle>
+                {eventUpcoming ? (
+                  <div className="mt-3 rounded border border-[#1a1208] bg-[#0d0a08]/60 px-4 py-6 text-center">
+                    <p className="font-display text-sm text-[#e8d5b0]">Ивент ещё не начался</p>
+                    <p className="mt-2 text-xs text-[#7a6a52]">
+                      {season
+                        ? `Старт ${season.startDateLong} — здесь появится текущая игра после аукциона`
+                        : "Здесь появится текущая игра после старта ивента"}
+                    </p>
+                  </div>
+                ) : detail.currentGame ? (
+                  <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="game-cover-frame relative aspect-[460/215] w-full max-w-[200px] shrink-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={resolveGameCover(
+                          detail.currentGame.title,
+                          detail.currentGame.coverImage,
+                        )}
+                        alt={detail.currentGame.title}
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display text-lg text-[#e8d5b0]">
+                        {detail.currentGame.title}
+                      </p>
+                      {detail.currentGame.difficulty && (
+                        <p className="text-xs text-[#7a6a52]">
+                          Сложность: {detail.currentGame.difficulty}
+                        </p>
+                      )}
+                      {(detail.currentGame.hltbHours != null ||
+                        (detail.currentGame.playTimeMs ?? 0) > 0 ||
+                        detail.currentGame.projectedPoints != null) && (
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {detail.currentGame.hltbHours != null && (
+                            <div className="mc-stat-card !gap-2 !p-2.5">
+                              <Clock className="h-4 w-4 shrink-0 text-mc-diamond" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] text-[#7a6a52]">HLTB</p>
+                                <p className="font-display text-sm text-[#e8d5b0]">
+                                  {formatHltbHours(detail.currentGame.hltbHours)}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {(detail.currentGame.playTimeMs ?? 0) > 0 && (
+                            <div className="mc-stat-card !gap-2 !p-2.5">
+                              <Timer className="h-4 w-4 shrink-0 text-primary" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] text-[#7a6a52]">Играет</p>
+                                <p className="font-display text-sm text-[#e8d5b0]">
+                                  {formatDurationMs(detail.currentGame.playTimeMs!)}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {detail.currentGame.projectedPoints != null && (
+                            <div className="mc-stat-card !gap-2 !p-2.5">
+                              <Star className="h-4 w-4 shrink-0 text-hypixel-gold" />
+                              <div className="min-w-0">
+                                <p className="text-[10px] text-[#7a6a52]">Награда</p>
+                                <p className="font-display text-sm text-hypixel-gold">
+                                  ~{formatNumber(detail.currentGame.projectedPoints)} очк.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {detail.currentGame.progressPct != null && (
+                        <div className="mt-3">
+                          <div className="mb-1 flex justify-between text-[10px] text-[#7a6a52]">
+                            <span>Прогресс</span>
+                            <span>{Math.round(detail.currentGame.progressPct)}%</span>
+                          </div>
+                          <Progress
+                            value={detail.currentGame.progressPct}
+                            className="h-3 bg-[#0d0a08]"
+                            indicatorClassName="bg-gradient-to-r from-primary to-hypixel-gold"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-[#7a6a52]">Сейчас не в игре</p>
+                )}
+              </section>
+
+              {/* Активные модификаторы */}
+              <section className="rounded border border-[#1a1208] bg-[#1a1208]/50 p-4">
+                <OsSectionTitle className="!mt-0">
+                  <span className="inline-flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-mc-diamond" />
+                    Активные модификаторы
+                  </span>
+                </OsSectionTitle>
+                {modifiers.length === 0 ? (
+                  <p className="mt-2 text-sm text-[#7a6a52]">Нет модификаторов в инвентаре</p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {modifiers.map((item) => {
+                      const rarity = rarityConfig[item.rarity as keyof typeof rarityConfig];
+                      const texture = item.iconUrl ?? getItemTexture(item.slug);
+                      const summary = summarizeItemEffects(item.effects);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={cn(
+                            "flex items-start gap-3 rounded border p-3 text-left transition-colors",
+                            item.active
+                              ? "border-primary/30 bg-[#1a1208]/60 hover:border-primary/50"
+                              : "border-[#1a1208] bg-[#1a1208]/30 opacity-80 hover:opacity-100",
+                          )}
+                          onMouseEnter={(e) => openItemPopup(item, e.currentTarget)}
+                          onClick={(e) => openItemPopup(item, e.currentTarget)}
+                        >
+                          <div className="relative shrink-0">
+                            <McItemSlot
+                              src={texture}
+                              alt={item.name}
+                              size="md"
+                              active={item.active}
+                              enchanted={
+                                item.active &&
+                                (item.rarity === "EPIC" ||
+                                  item.rarity === "LEGENDARY" ||
+                                  item.rarity === "RARE")
+                              }
+                            />
+                            {item.quantity > 1 && (
+                              <span className="absolute bottom-0 right-0 font-display text-[10px] text-white drop-shadow">
+                                ×{item.quantity}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-sm font-bold leading-tight", rarity?.text)}>
+                              {item.name}
+                            </p>
+                            <p className="mt-1 text-xs leading-snug text-primary">{summary}</p>
+                            <p className="mt-1 text-[10px] text-[#7a6a52]">
+                              {item.active ? "Нажми для подробностей" : "Сейчас недоступен"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              {/* Остальной инвентарь */}
+              {otherItems.length > 0 && (
+                <section className="rounded border border-[#1a1208] bg-[#1a1208]/40 p-4">
+                  <OsSectionTitle className="!mt-0">Инвентарь</OsSectionTitle>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {otherItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="rounded border border-transparent p-1 transition-colors hover:border-[#373737]"
+                        onMouseEnter={(e) => openItemPopup(item, e.currentTarget)}
+                        onClick={(e) => openItemPopup(item, e.currentTarget)}
+                        title={item.name}
+                      >
+                        <McItemSlot
+                          src={item.iconUrl ?? getItemTexture(item.slug)}
+                          alt={item.name}
+                          size="sm"
+                          active
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* История */}
+              {detail.history.length > 0 && (
+                <section>
+                  <OsSectionTitle>История игр</OsSectionTitle>
+                  <ul className="mt-2 space-y-1">
+                    {detail.history.slice(0, 5).map((h) => (
+                      <li
+                        key={h.id}
+                        className="flex items-center gap-3 rounded border border-[#1a1208] bg-[#1a1208]/30 px-3 py-2 text-sm"
+                      >
+                        {h.cover && (
+                          <Image
+                            src={h.cover}
+                            alt=""
+                            width={32}
+                            height={32}
+                            className="mc-pixel-image h-8 w-8 object-cover"
+                          />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-[#e8d5b0]">{h.game}</span>
+                        {h.finalScore != null && (
+                          <span className="text-hypixel-gold">+{h.finalScore}</span>
+                        )}
+                        {h.dropPenalty != null && (
+                          <span className="text-mc-redstone">-{h.dropPenalty}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {popupItem && (
+        <ItemDetailPopup
+          item={popupItem}
+          anchorRect={popupAnchor}
+          visible
+          onClose={closeItemPopup}
+        />
+      )}
+    </OsPanelFrame>
+  );
+}

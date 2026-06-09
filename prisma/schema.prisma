@@ -1,0 +1,448 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+}
+
+enum UserRole {
+  VIEWER
+  STREAMER
+  ADMIN
+}
+
+enum ParticipantStatus {
+  IDLE
+  AUCTIONING
+  AWAITING_DIFFICULTY
+  PLAYING
+  PAUSED
+  COMPLETED
+  DROPPED
+  CASINO
+}
+
+enum AuctionStatus {
+  PREPARING
+  RUNNING
+  RESOLVED
+  CANCELLED
+}
+
+enum Difficulty {
+  EASY
+  NORMAL
+  HARD
+  NIGHTMARE
+}
+
+enum SessionStatus {
+  AWAITING_DIFFICULTY
+  PLAYING
+  PAUSED
+  COMPLETED
+  DROPPED
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum ItemKind {
+  MODIFIER
+  MATERIAL
+  CRAFTABLE
+}
+
+enum BossStatus {
+  ACTIVE
+  DEFEATED
+}
+
+enum TimerEventType {
+  START
+  PAUSE
+  RESUME
+  COMPLETE
+  DROP
+}
+
+enum ActivityLogType {
+  AUCTION_WON
+  GAME_COMPLETED
+  GAME_DROPPED
+  BOSS_HIT
+  BOSS_DEFEATED
+  LOOT
+  CRAFT
+  POINTS_ADJUSTED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  name          String?
+  image         String?
+  role          UserRole  @default(VIEWER)
+  twitchId      String?   @unique @map("twitch_id")
+  twitchLogin   String?   @map("twitch_login")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts     Account[]
+  sessions     Session[]
+  participant  Participant?
+  activityLogs ActivityLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Event {
+  id        String      @id @default(cuid())
+  name      String
+  startsAt  DateTime    @map("starts_at")
+  endsAt    DateTime    @map("ends_at")
+  status    EventStatus @default(UPCOMING)
+  config    Json        @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participants  Participant[]
+  gamePool      EventGamePool[]
+  boss          Boss?
+  activityLogs  ActivityLog[]
+
+  @@map("events")
+}
+
+model Participant {
+  id               String            @id @default(cuid())
+  eventId          String            @map("event_id")
+  userId           String            @unique @map("user_id")
+  displayOrder     Int               @default(0) @map("display_order")
+  totalPoints      Int               @default(0) @map("total_points")
+  status           ParticipantStatus @default(IDLE)
+  currentSessionId String?           @unique @map("current_session_id")
+  isLive           Boolean           @default(false) @map("is_live")
+  lastLiveAt       DateTime?         @map("last_live_at")
+  currentGameTitle String?           @map("current_game_title")
+  gameProgressPct  Float?            @map("game_progress_pct")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentSession GameSession?    @relation("CurrentSession", fields: [currentSessionId], references: [id], onDelete: SetNull)
+  auctionRuns    AuctionRun[]
+  gameSessions   GameSession[]   @relation("ParticipantSessions")
+  inventoryItems InventoryItem[]
+  bossDamages    BossDamage[]
+
+  @@index([eventId, totalPoints(sort: Desc)])
+  @@map("participants")
+}
+
+model CatalogGame {
+  id                 String    @id @default(cuid())
+  rawgId             Int       @unique @map("rawg_id")
+  hltbId             Int?      @unique @map("hltb_id")
+  title              String
+  slug               String    @unique
+  coverImage         String?   @map("cover_image")
+  mainStoryHours     Float?    @map("main_story_hours")
+  mainExtraHours     Float?    @map("main_extra_hours")
+  completionistHours Float?    @map("completionist_hours")
+  hltbSyncedAt       DateTime? @map("hltb_synced_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  poolEntries      EventGamePool[]
+  auctionCandidates AuctionCandidate[]
+  gameSessions     GameSession[]
+  resolvedAuctions AuctionRun[]       @relation("ResolvedGame")
+
+  @@index([title])
+  @@map("catalog_games")
+}
+
+model EventGamePool {
+  id            String  @id @default(cuid())
+  eventId       String  @map("event_id")
+  catalogGameId String  @map("catalog_game_id")
+  weight        Int     @default(100)
+  isEnabled     Boolean @default(true) @map("is_enabled")
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  catalogGame CatalogGame @relation(fields: [catalogGameId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, catalogGameId])
+  @@map("event_game_pool")
+}
+
+model AuctionRun {
+  id             String        @id @default(cuid())
+  participantId  String        @map("participant_id")
+  status         AuctionStatus @default(PREPARING)
+  seed           String?
+  candidateCount Int           @default(8) @map("candidate_count")
+  resolvedGameId String?       @map("resolved_game_id")
+  modifiersJson  Json          @default("[]") @map("modifiers_json")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  resolvedAt     DateTime?     @map("resolved_at")
+
+  participant    Participant         @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  resolvedGame   CatalogGame?        @relation("ResolvedGame", fields: [resolvedGameId], references: [id], onDelete: SetNull)
+  candidates     AuctionCandidate[]
+  modifierUses   ModifierConsumption[]
+  gameSession    GameSession?
+
+  @@index([participantId, status])
+  @@map("auction_runs")
+}
+
+model AuctionCandidate {
+  id            String    @id @default(cuid())
+  auctionRunId  String    @map("auction_run_id")
+  catalogGameId String    @map("catalog_game_id")
+  orderIndex    Int       @map("order_index")
+  eliminatedAt  DateTime? @map("eliminated_at")
+
+  auctionRun  AuctionRun  @relation(fields: [auctionRunId], references: [id], onDelete: Cascade)
+  catalogGame CatalogGame @relation(fields: [catalogGameId], references: [id], onDelete: Cascade)
+
+  @@index([auctionRunId, orderIndex])
+  @@map("auction_candidates")
+}
+
+model ModifierConsumption {
+  id              String @id @default(cuid())
+  auctionRunId    String @map("auction_run_id")
+  inventoryItemId String @map("inventory_item_id")
+
+  auctionRun    AuctionRun    @relation(fields: [auctionRunId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@map("modifier_consumptions")
+}
+
+model GameSession {
+  id             String         @id @default(cuid())
+  participantId  String         @map("participant_id")
+  catalogGameId  String         @map("catalog_game_id")
+  auctionRunId   String         @unique @map("auction_run_id")
+  difficulty     Difficulty?
+  status         SessionStatus  @default(AWAITING_DIFFICULTY)
+  hltbMainHours  Float          @map("hltb_main_hours")
+  activePlayMs   BigInt         @default(0) @map("active_play_ms")
+  lastResumedAt  DateTime?      @map("last_resumed_at")
+  startedAt      DateTime?      @map("started_at")
+  completedAt    DateTime?      @map("completed_at")
+  finalScore     Int?           @map("final_score")
+  dropPenalty    Int?           @map("drop_penalty")
+  scoreBreakdown Json?          @map("score_breakdown")
+  modifiersJson      Json @default("[]") @map("modifiers_json")
+  casinoSpinsTotal   Int  @default(0) @map("casino_spins_total")
+  casinoSpinsUsed    Int  @default(0) @map("casino_spins_used")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participant       Participant  @relation("ParticipantSessions", fields: [participantId], references: [id], onDelete: Cascade)
+  catalogGame       CatalogGame  @relation(fields: [catalogGameId], references: [id], onDelete: Restrict)
+  auctionRun        AuctionRun   @relation(fields: [auctionRunId], references: [id], onDelete: Cascade)
+  currentFor        Participant? @relation("CurrentSession")
+  timerEvents       TimerEvent[]
+  lootDrops         LootDrop[]
+  bossDamages       BossDamage[]
+
+  @@index([participantId, status])
+  @@map("game_sessions")
+}
+
+model TimerEvent {
+  id            String         @id @default(cuid())
+  gameSessionId String         @map("game_session_id")
+  type          TimerEventType
+  occurredAt    DateTime       @default(now()) @map("occurred_at")
+  activePlayMs  BigInt         @map("active_play_ms")
+
+  gameSession GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  @@index([gameSessionId, occurredAt])
+  @@map("timer_events")
+}
+
+model ItemDefinition {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?  @db.Text
+  rarity      Rarity   @default(COMMON)
+  kind        ItemKind @default(MODIFIER)
+  effectsJson Json     @default("{}") @map("effects_json")
+  iconUrl     String?  @map("icon_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  inventoryItems    InventoryItem[]
+  lootDrops         LootDrop[]
+  craftRecipes      CraftRecipe[]     @relation("RecipeResult")
+  craftIngredients  CraftIngredient[]
+
+  @@map("item_definitions")
+}
+
+model InventoryItem {
+  id               String  @id @default(cuid())
+  participantId    String  @map("participant_id")
+  itemDefinitionId String  @map("item_definition_id")
+  quantity         Int     @default(1)
+  instanceId       String? @map("instance_id")
+
+  participant         Participant           @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  itemDefinition      ItemDefinition        @relation(fields: [itemDefinitionId], references: [id], onDelete: Cascade)
+  modifierConsumptions ModifierConsumption[]
+
+  @@index([participantId])
+  @@map("inventory_items")
+}
+
+model LootDrop {
+  id               String @id @default(cuid())
+  gameSessionId    String @map("game_session_id")
+  itemDefinitionId String @map("item_definition_id")
+  rarity           Rarity
+
+  gameSession    GameSession    @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  itemDefinition ItemDefinition @relation(fields: [itemDefinitionId], references: [id], onDelete: Cascade)
+
+  @@map("loot_drops")
+}
+
+model CraftRecipe {
+  id           String @id @default(cuid())
+  slug         String @unique
+  name         String
+  resultItemId String @map("result_item_id")
+  resultQty    Int    @default(1) @map("result_qty")
+
+  resultItem ItemDefinition    @relation("RecipeResult", fields: [resultItemId], references: [id], onDelete: Cascade)
+  ingredients CraftIngredient[]
+
+  @@map("craft_recipes")
+}
+
+model CraftIngredient {
+  id               String @id @default(cuid())
+  recipeId         String @map("recipe_id")
+  itemDefinitionId String @map("item_definition_id")
+  quantity         Int    @default(1)
+
+  recipe         CraftRecipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  itemDefinition ItemDefinition @relation(fields: [itemDefinitionId], references: [id], onDelete: Cascade)
+
+  @@map("craft_ingredients")
+}
+
+model Boss {
+  id        String     @id @default(cuid())
+  eventId   String     @unique @map("event_id")
+  slug      String
+  name      String
+  maxHp     Int        @map("max_hp")
+  currentHp Int        @map("current_hp")
+  status    BossStatus @default(ACTIVE)
+
+  event   Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  damages BossDamage[]
+
+  @@map("bosses")
+}
+
+model BossDamage {
+  id            String   @id @default(cuid())
+  bossId        String   @map("boss_id")
+  participantId String   @map("participant_id")
+  gameSessionId String   @map("game_session_id")
+  damage        Int
+  dealtAt       DateTime @default(now()) @map("dealt_at")
+
+  boss        Boss        @relation(fields: [bossId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  gameSession GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  @@index([bossId])
+  @@map("boss_damages")
+}
+
+model ActivityLog {
+  id        String          @id @default(cuid())
+  eventId   String          @map("event_id")
+  type      ActivityLogType
+  actorId   String?         @map("actor_id")
+  payload   Json            @default("{}")
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
