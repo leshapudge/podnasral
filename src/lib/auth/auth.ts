@@ -8,6 +8,7 @@ import { resolveTwitchRole } from "@/lib/auth/twitch-roles";
 import { syncTwitchUserProfile } from "@/lib/auth/sync-twitch-user";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({

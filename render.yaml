@@ -25,6 +25,8 @@ services:
         generateValue: true
       - key: AUTH_URL
         sync: false
+      - key: AUTH_TRUST_HOST
+        value: "true"
       - key: AUTH_TWITCH_ID
         sync: false
       - key: AUTH_TWITCH_SECRET
