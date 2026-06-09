@@ -1,16 +1,10 @@
 import { mcAvatarUrl } from "./assets";
 
 /**
- * Twitch login → Minecraft-ник с уникальным скином на mc-heads.net.
- * Если ника нет в маппинге — используем avatar из профиля (Dicebear и т.д.).
+ * Twitch login → Minecraft-ник для mc-heads (опционально).
+ * Если ника нет — показываем Twitch-аватар из профиля (image в ростере / user.image).
  */
-export const STREAMER_MC_SKINS: Record<string, string> = {
-  karmikkoala: "Notch",
-  melharucos: "jeb_",
-  xnestorio: "Dinnerbone",
-  dream: "Dream",
-  technoblade: "Technoblade",
-};
+export const STREAMER_MC_SKINS: Record<string, string> = {};
 
 export function resolveMcSkinName(twitchLogin?: string | null): string | null {
   if (!twitchLogin) return null;

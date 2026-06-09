@@ -14,53 +14,45 @@ export interface EventRosterMember {
 
 export const EVENT_STREAMERS: EventRosterMember[] = [
   {
-    twitchLogin: "karmikkoala",
-    twitchId: "54742538",
-    displayName: "KarmikKoala",
-    image:
-      "https://static-cdn.jtvnw.net/jtv_user_pictures/40c080e2-1037-4501-8b88-231524cc8bc8-profile_image-300x300.png",
-    displayOrder: 1,
-  },
-  {
-    twitchLogin: "melharucos",
-    twitchId: "26819117",
-    displayName: "Melharucos",
-    image:
-      "https://static-cdn.jtvnw.net/jtv_user_pictures/1f3d7e72-6c77-4fe7-9a08-def5ec31ed6b-profile_image-300x300.png",
-    displayOrder: 2,
-  },
-  {
-    twitchLogin: "xnestorio",
-    twitchId: "46602222",
-    displayName: "xNestorio",
-    image:
-      "https://static-cdn.jtvnw.net/jtv_user_pictures/16145652-d585-466b-9d66-671b164084a1-profile_image-300x300.png",
-    displayOrder: 3,
-  },
-  {
-    twitchLogin: "dream",
-    twitchId: "451544676",
-    displayName: "Dream",
-    image:
-      "https://static-cdn.jtvnw.net/jtv_user_pictures/3aaeb687-ce59-4c18-b701-69a231ef06e9-profile_image-300x300.png",
-    displayOrder: 4,
-  },
-  {
-    twitchLogin: "technoblade",
-    twitchId: "32920789",
-    displayName: "Technoblade",
-    image:
-      "https://static-cdn.jtvnw.net/jtv_user_pictures/technoblade-profile_image-b9cdfb76fd865da2-300x300.png",
-    displayOrder: 5,
-  },
-  {
     twitchLogin: "kazanfarik",
     twitchId: "566104351",
     displayName: "kazanfarik",
     image:
       "https://static-cdn.jtvnw.net/jtv_user_pictures/d7c7f3a6-225b-44f7-9ce4-27663ce6b8df-profile_image-300x300.png",
-    displayOrder: 6,
+    displayOrder: 1,
     role: "ADMIN",
+  },
+  {
+    twitchLogin: "blindzonexgod",
+    twitchId: "613410561",
+    displayName: "blindzonexgod",
+    image:
+      "https://static-cdn.jtvnw.net/jtv_user_pictures/14477a4b-bdd1-44c4-b9de-f0c52fc24ee7-profile_image-300x300.png",
+    displayOrder: 2,
+  },
+  {
+    twitchLogin: "kwwwinn",
+    twitchId: "909325269",
+    displayName: "kwwwinn",
+    image:
+      "https://static-cdn.jtvnw.net/jtv_user_pictures/415c3fdd-fbbb-4354-a04e-b4c398bc343f-profile_image-300x300.png",
+    displayOrder: 3,
+  },
+  {
+    twitchLogin: "kyotowave",
+    twitchId: "881403434",
+    displayName: "kyotowave",
+    image:
+      "https://static-cdn.jtvnw.net/jtv_user_pictures/f9bce973-c02a-4941-8780-fa801d380d34-profile_image-300x300.png",
+    displayOrder: 4,
+  },
+  {
+    twitchLogin: "xu3t",
+    twitchId: "570432437",
+    displayName: "xu3t",
+    image:
+      "https://static-cdn.jtvnw.net/jtv_user_pictures/a98bc252-66b6-4a80-95f6-439aed77d05b-profile_image-300x300.png",
+    displayOrder: 5,
   },
 ];
 
