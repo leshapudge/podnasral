@@ -1,52 +1,49 @@
 "use client";
 
+import Image from "next/image";
 import { signInWithProvider } from "@/features/auth/actions";
 import type { OAuthProviderId } from "@/lib/auth/providers";
+import { cn } from "@/lib/utils";
 
 const providers: {
   id: OAuthProviderId;
   label: string;
-  color: string;
-  icon: string;
 }[] = [
   {
     id: "twitch",
     label: "Войти через Twitch",
-    color: "#9146FF",
-    icon: "🟣",
   },
 ];
 
 interface LoginButtonsProps {
   callbackUrl?: string;
+  disabled?: boolean;
 }
 
-export function LoginButtons({ callbackUrl = "/dashboard" }: LoginButtonsProps) {
+export function LoginButtons({ callbackUrl = "/streamer", disabled }: LoginButtonsProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+    <div className="flex w-full flex-col gap-3">
       {providers.map((provider) => (
         <button
           key={provider.id}
           type="button"
+          disabled={disabled}
           onClick={() => signInWithProvider(provider.id, callbackUrl)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            width: "100%",
-            padding: "14px 20px",
-            border: "none",
-            borderRadius: "4px",
-            backgroundColor: provider.color,
-            color: "#fff",
-            fontSize: "16px",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 4px 0 rgba(0,0,0,0.3)",
-          }}
+          className={cn(
+            "group flex w-full items-center justify-center gap-3 rounded-md border-2 px-5 py-3.5",
+            "border-[#1a1208] bg-[#9146FF] font-display text-sm uppercase tracking-wider text-white",
+            "shadow-[0_4px_0_#5c2d99,inset_0_1px_0_rgba(255,255,255,0.2)]",
+            "transition-[transform,filter] hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_#5c2d99]",
+            disabled && "cursor-not-allowed opacity-50 grayscale",
+          )}
         >
-          <span>{provider.icon}</span>
+          <Image
+            src="/assets/mc/social/twitch.svg"
+            alt=""
+            width={22}
+            height={22}
+            className="mc-pixel-image shrink-0 brightness-0 invert"
+          />
           <span>{provider.label}</span>
         </button>
       ))}

@@ -2,18 +2,22 @@ import NextAuth from "next-auth";
 import Twitch from "next-auth/providers/twitch";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "@/lib/db/prisma";
+import { getTwitchOAuthCredentials } from "@/lib/auth/env";
 import { reconcileOAuthUser } from "@/lib/auth/reconcile-oauth-user";
 import { ensureEventParticipant } from "@/lib/participants/ensure-event-participant";
 import { resolveTwitchRole } from "@/lib/auth/twitch-roles";
 import { syncTwitchUserProfile } from "@/lib/auth/sync-twitch-user";
 
+const twitchCreds = getTwitchOAuthCredentials();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  secret: process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   providers: [
     Twitch({
-      clientId: process.env.AUTH_TWITCH_ID,
-      clientSecret: process.env.AUTH_TWITCH_SECRET,
+      clientId: twitchCreds.clientId ?? "",
+      clientSecret: twitchCreds.clientSecret ?? "",
     }),
   ],
   callbacks: {
@@ -67,5 +71,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/login",
+    error: "/login",
   },
 });

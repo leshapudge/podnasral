@@ -1,3 +1,4 @@
+import { authConfigIssues, isAuthConfigured } from "@/lib/auth/env";
 import { success } from "@/lib/api/response";
 
 export async function GET() {
@@ -6,5 +7,9 @@ export async function GET() {
     service: "mineseason-api",
     version: "2.0",
     timestamp: new Date().toISOString(),
+    auth: {
+      configured: isAuthConfigured(),
+      missing: authConfigIssues(),
+    },
   });
 }
