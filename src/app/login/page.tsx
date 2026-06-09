@@ -11,7 +11,8 @@ const errorMessages: Record<string, string> = {
   OAuthSignin: "Не удалось подключиться к Twitch. Проверьте OAuth Redirect URL в Twitch Console.",
   OAuthCallback: "Twitch вернул ошибку. Убедитесь, что redirect URL совпадает с AUTH_URL.",
   OAuthAccountNotLinked: "Этот Twitch уже привязан к другому аккаунту.",
-  AccessDenied: "Доступ запрещён — ваш логин не в списке стримеров сезона.",
+  AccessDenied:
+    "Вход отклонён. Если вы стример сезона (kazanfarik, blindzonexgod, kwwwinn, kyotowave, xu3t) — попробуйте снова после редеплоя. Иначе проверьте логи Render.",
   Configuration:
     "Сервер авторизации не настроен. На хостинге не хватает переменных окружения (Twitch, AUTH_SECRET, DATABASE_URL).",
   Default: "Не удалось войти. Попробуйте снова.",

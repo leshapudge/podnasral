@@ -4,7 +4,6 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "@/lib/db/prisma";
 import { getTwitchOAuthCredentials } from "@/lib/auth/env";
 import { reconcileOAuthUser } from "@/lib/auth/reconcile-oauth-user";
-import { ensureEventParticipant } from "@/lib/participants/ensure-event-participant";
 import { resolveTwitchRole } from "@/lib/auth/twitch-roles";
 import { syncTwitchUserProfile } from "@/lib/auth/sync-twitch-user";
 
@@ -26,14 +25,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const twitchId = account.providerAccountId;
       const twitchLogin =
-        (profile as { login?: string; preferred_username?: string })?.login ??
-        (profile as { preferred_username?: string })?.preferred_username ??
+        (profile as { preferred_username?: string; login?: string })?.preferred_username ??
+        (profile as { login?: string })?.login ??
         null;
 
-      const role = resolveTwitchRole(twitchId, twitchLogin);
-
-      await reconcileOAuthUser(user.id, twitchId, twitchLogin, role);
-      await ensureEventParticipant(user.id, twitchId, twitchLogin);
+      try {
+        const role = resolveTwitchRole(twitchId, twitchLogin);
+        await reconcileOAuthUser(user.id, twitchId, twitchLogin, role);
+        // participant привязывается в /api/v1/me — не блокируем вход при ошибке БД
+      } catch (err) {
+        console.error("[auth] signIn callback failed:", err);
+      }
 
       return true;
     },
@@ -55,18 +57,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async createUser({ user }) {
       if (!user.id) return;
 
-      const account = await prisma.account.findFirst({
-        where: { userId: user.id, provider: "twitch" },
-      });
-      const twitchId = account?.providerAccountId;
-      if (!twitchId) return;
+      try {
+        const account = await prisma.account.findFirst({
+          where: { userId: user.id, provider: "twitch" },
+        });
+        const twitchId = account?.providerAccountId;
+        if (!twitchId) return;
 
-      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-      const twitchLogin = dbUser?.twitchLogin ?? null;
-      const role = resolveTwitchRole(twitchId, twitchLogin);
-
-      await reconcileOAuthUser(user.id, twitchId, twitchLogin, role);
-      await ensureEventParticipant(user.id, twitchId, twitchLogin);
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+        const twitchLogin = dbUser?.twitchLogin ?? null;
+        const role = resolveTwitchRole(twitchId, twitchLogin);
+        await reconcileOAuthUser(user.id, twitchId, twitchLogin, role);
+      } catch (err) {
+        console.error("[auth] createUser event failed:", err);
+      }
     },
   },
   pages: {

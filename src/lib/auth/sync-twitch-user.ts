@@ -16,10 +16,8 @@ export async function syncTwitchUserProfile(userId: string) {
 
   const twitchId = account.providerAccountId;
   const roster = EVENT_STREAMERS.find((s) => s.twitchId === twitchId);
-  const twitchLogin =
-    user.twitchLogin ??
-    roster?.twitchLogin ??
-    (user.name ? user.name.toLowerCase() : null);
+  const accountLogin = user.name?.toLowerCase() ?? null;
+  const twitchLogin = user.twitchLogin ?? roster?.twitchLogin ?? accountLogin;
 
   const role = resolveTwitchRole(twitchId, twitchLogin);
   const resolvedRole =
