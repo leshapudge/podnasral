@@ -10,6 +10,7 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
+    "start:render": "prisma db push && npm run db:seed && next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -46,7 +47,9 @@
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.25.42"
+    "zod": "^3.25.42",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.8",
@@ -55,9 +58,7 @@
     "@types/react-dom": "^19.1.5",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
-    "prisma": "^6.8.2",
     "tailwindcss": "^4.1.8",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
