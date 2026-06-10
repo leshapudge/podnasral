@@ -12,7 +12,6 @@ import { OsStatusBar } from "./os-status-bar";
 import { StreamersHubPanel } from "./panels/streamers-hub-panel";
 import { ProfilePanel } from "./panels/profile-panel";
 import { InventoryPanel } from "./panels/inventory-panel";
-import { SeasonPanel } from "./panels/season-panel";
 import { BossPanel } from "./panels/boss-panel";
 import { SecretsPanel } from "./panels/secrets-panel";
 import { ArtifactSpawner } from "@/components/secrets/artifact-spawner";
@@ -78,8 +77,6 @@ function Panel({
       );
     case "items":
       return <ItemsEncyclopediaPanel />;
-    case "season":
-      return <SeasonPanel season={homeData.season} />;
     case "boss":
       return (
         <BossPanel

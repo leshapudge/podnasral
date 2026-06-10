@@ -150,18 +150,6 @@ export function OverviewPanel({ isAuthenticated, homeData, onTabChange }: Overvi
       ) : (
         <p className="mt-6 text-center text-sm text-[#7a6a52]">Боссы сезона скоро появятся</p>
       )}
-
-      {season && (
-        <button
-          type="button"
-          onClick={() => onTabChange("season")}
-          className="mt-4 w-full rounded border border-primary/20 bg-primary/5 p-3 text-center transition-colors hover:border-primary/40 sm:text-left"
-        >
-          <p className="text-xs text-[#7a6a52]">Прогресс сезона</p>
-          <p className="font-display text-xl text-primary">{season.progress}%</p>
-          <p className="text-xs text-[#7a6a52]">осталось {season.daysRemaining} дней</p>
-        </button>
-      )}
     </OsPanelFrame>
   );
 }
