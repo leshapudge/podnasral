@@ -16,6 +16,8 @@ export const eventConfigSchema = z.object({
   bossDamageRatio: z.number().default(0.45),
   auctionCandidateCount: z.number().default(8),
   maxModifiersPerAuction: z.number().default(2),
+  /** Макс. доп. спинов, которые стример может ввести вручную один раз за сессию казино. */
+  maxManualCasinoBonusSpins: z.number().default(10),
   difficultyWeights: difficultyWeightsSchema.default({}),
   difficultyMultipliers: z
     .object({

@@ -1,3 +1,4 @@
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import prisma from "@/lib/db/prisma";
 import { getInventory } from "@/lib/craft/craft.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
@@ -11,7 +12,9 @@ import {
   calculateScore,
   type ModifierEffects,
 } from "@/lib/scoring/score-calculator";
+import { EVENT_STREAMERS } from "@/lib/event/event-roster";
 import { assignCompetitionRanks } from "./leaderboard-ranks";
+import { authorizedParticipantsWhere, authorizedStreamerUserFilter } from "./authorized-streamer";
 
 async function buildCurrentGameStats(params: {
   hltbMainHours: number | null | undefined;
@@ -45,12 +48,57 @@ async function buildCurrentGameStats(params: {
   };
 }
 
+type ParticipantWithSession = Awaited<
+  ReturnType<
+    typeof prisma.participant.findMany<{
+      include: {
+        user: { select: { name: true; image: true; twitchLogin: true } };
+        currentSession: { include: { catalogGame: true } };
+      };
+    }>
+  >
+>[number];
+
+function mapParticipantToEntry(
+  p: ParticipantWithSession,
+  gamesEnabled: boolean,
+) {
+  const session = p.currentSession;
+  let progressPct = p.gameProgressPct ?? 0;
+  if (session && (session.status === "PLAYING" || session.status === "PAUSED")) {
+    const elapsed = getElapsedMs(session.activePlayMs, session.lastResumedAt, session.status);
+    progressPct = getProgressPct(elapsed, session.hltbMainHours);
+  }
+
+  return {
+    id: p.id,
+    nickname: p.user.twitchLogin ?? p.user.name ?? "Unknown",
+    twitchLogin: p.user.twitchLogin,
+    avatar: p.user.image,
+    totalPoints: p.totalPoints,
+    status: p.status,
+    isLive: p.isLive,
+    currentGame:
+      gamesEnabled && session
+        ? {
+            title: session.catalogGame.title,
+            coverImage: session.catalogGame.coverImage,
+            difficulty: session.difficulty,
+            sessionStatus: session.status,
+            progressPct,
+          }
+        : gamesEnabled && p.currentGameTitle
+          ? { title: p.currentGameTitle, progressPct }
+          : null,
+  };
+}
+
 export async function getLeaderboard(eventId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   const gamesEnabled = event?.status === "ACTIVE";
 
   const participants = await prisma.participant.findMany({
-    where: { eventId },
+    where: authorizedParticipantsWhere(eventId),
     orderBy: [{ totalPoints: "desc" }, { displayOrder: "asc" }],
     include: {
       user: { select: { name: true, image: true, twitchLogin: true } },
@@ -60,43 +108,73 @@ export async function getLeaderboard(eventId: string) {
     },
   });
 
-  const entries = participants.map((p) => {
-    const session = p.currentSession;
-    let progressPct = p.gameProgressPct ?? 0;
-    if (session && (session.status === "PLAYING" || session.status === "PAUSED")) {
-      const elapsed = getElapsedMs(session.activePlayMs, session.lastResumedAt, session.status);
-      progressPct = getProgressPct(elapsed, session.hltbMainHours);
-    }
-
-    return {
-      id: p.id,
-      nickname: p.user.twitchLogin ?? p.user.name ?? "Unknown",
-      twitchLogin: p.user.twitchLogin,
-      avatar: p.user.image,
-      totalPoints: p.totalPoints,
-      status: p.status,
-      isLive: p.isLive,
-      currentGame:
-        gamesEnabled && session
-          ? {
-              title: session.catalogGame.title,
-              coverImage: session.catalogGame.coverImage,
-              difficulty: session.difficulty,
-              sessionStatus: session.status,
-              progressPct,
-            }
-          : gamesEnabled && p.currentGameTitle
-            ? { title: p.currentGameTitle, progressPct }
-            : null,
-    };
-  });
+  const entries = participants.map((p) => mapParticipantToEntry(p, gamesEnabled));
 
   return assignCompetitionRanks(entries);
 }
 
+/** Полный пул стримеров сезона — вкладка «Стримеры» (включая ещё не вошедших). */
+export async function getStreamersRoster(eventId: string) {
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  const gamesEnabled = event?.status === "ACTIVE";
+
+  const participants = await prisma.participant.findMany({
+    where: {
+      eventId,
+      user: authorizedStreamerUserFilter,
+    },
+    include: {
+      user: { select: { name: true, image: true, twitchLogin: true } },
+      currentSession: { include: { catalogGame: true } },
+    },
+  });
+
+  const byLogin = new Map(
+    participants
+      .filter((p) => p.user.twitchLogin)
+      .map((p) => [p.user.twitchLogin!.toLowerCase(), p]),
+  );
+
+  const ranked = assignCompetitionRanks(
+    participants.map((p) => mapParticipantToEntry(p, gamesEnabled)),
+  );
+  const rankedById = new Map(ranked.map((e) => [e.id, e]));
+
+  return EVENT_STREAMERS.map((roster) => {
+    const linked = byLogin.get(roster.twitchLogin.toLowerCase());
+    if (linked) {
+      const entry = rankedById.get(linked.id)!;
+      return {
+        ...entry,
+        registered: true as const,
+        displayOrder: roster.displayOrder,
+        avatar: entry.avatar ?? roster.image,
+        nickname: entry.nickname || roster.displayName,
+      };
+    }
+
+    return {
+      id: `roster:${roster.twitchLogin}`,
+      registered: false as const,
+      displayOrder: roster.displayOrder,
+      rank: roster.displayOrder,
+      nickname: roster.displayName,
+      twitchLogin: roster.twitchLogin,
+      avatar: roster.image,
+      totalPoints: 0,
+      status: "IDLE",
+      isLive: false,
+      currentGame: null,
+    };
+  }).sort((a, b) => {
+    if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+    return a.displayOrder - b.displayOrder;
+  });
+}
+
 async function getParticipantRank(eventId: string, participantId: string): Promise<number> {
   const participants = await prisma.participant.findMany({
-    where: { eventId },
+    where: authorizedParticipantsWhere(eventId),
     orderBy: [{ totalPoints: "desc" }, { displayOrder: "asc" }],
     select: { id: true, totalPoints: true },
   });
@@ -244,7 +322,7 @@ export async function getParticipantPublicDetail(participantId: string) {
       kind: i.itemDefinition.kind,
       quantity: i.quantity,
       effects: i.itemDefinition.effectsJson as Record<string, number>,
-      iconUrl: i.itemDefinition.iconUrl,
+      iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
       active: i.itemDefinition.kind === "MODIFIER" && modifiersAvailable && i.quantity > 0,
     })),
     history: participant.gameSessions.map((s) => ({
@@ -256,10 +334,26 @@ export async function getParticipantPublicDetail(participantId: string) {
       dropPenalty: s.dropPenalty,
       difficulty: s.difficulty,
       completedAt: s.completedAt?.toISOString() ?? null,
+      playerRating: s.playerRating,
+      playerReview: s.playerReview,
     })),
+    completedGames: participant.gameSessions
+      .filter((s) => s.status === "COMPLETED" && s.playerRating != null && s.playerReview)
+      .map((s) => ({
+        id: s.id,
+        title: s.catalogGame.title,
+        cover: resolveGameCover(s.catalogGame.title, s.catalogGame.coverImage),
+        rating: s.playerRating!,
+        review: s.playerReview!,
+        finalScore: s.finalScore,
+        difficulty: s.difficulty,
+        completedAt: s.completedAt?.toISOString() ?? null,
+      })),
     stats: {
       gamesPlayed: participant.gameSessions.length,
-      gamesCompleted: participant.gameSessions.filter((s) => s.status === "COMPLETED").length,
+      gamesCompleted: participant.gameSessions.filter(
+        (s) => s.status === "COMPLETED" && s.playerRating != null,
+      ).length,
     },
   };
 }

@@ -67,7 +67,7 @@ export function OsNavTabs({ active, onChange, isAuthenticated, user }: OsNavTabs
           </button>
         ) : (
           <Link
-            href="/login"
+            href="/login?callbackUrl=%2F%3Ftab%3Dkazik"
             className="mc-os-btn flex h-7 items-center px-2 text-[10px] uppercase leading-none"
           >
             Войти

@@ -1,4 +1,5 @@
 import type { SecretAchievementDef, ArtifactDef, SecretCommandDef } from "./types";
+import { EVENT_BRAND, EVENT_WORLD_SEED } from "@/lib/event/event-brand";
 
 export const EXPLORER_PAGES = [
   "/",
@@ -91,7 +92,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🥚",
     rarity: "LEGENDARY",
     description: "Яйцо дракона Края. Пульсирует тёмной энергией.",
-    pages: ["/", "/stronghold"],
+    pages: ["/stronghold"],
   },
   {
     slug: "totem-of-undying",
@@ -114,7 +115,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     name: "Elytra",
     icon: "🪽",
     rarity: "EPIC",
-    description: "Крылья для полёта над миром MINESEASON.",
+    description: `Крылья для полёта над миром ${EVENT_BRAND}.`,
     pages: ["/world", "/lost-chunk"],
   },
   {
@@ -160,7 +161,7 @@ export const SECRET_COMMANDS: SecretCommandDef[] = [
   { command: "/debug", description: "Статистика секретов", hidden: true },
 ];
 
-export const WORLD_SEED = "MINESEASON-2026-8406129";
+export const WORLD_SEED = EVENT_WORLD_SEED;
 
 export function getAchievementDef(slug: string) {
   return SECRET_ACHIEVEMENTS.find((a) => a.slug === slug);

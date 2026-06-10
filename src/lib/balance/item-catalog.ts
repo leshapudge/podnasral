@@ -1,15 +1,10 @@
 /**
- * Каталог предметов MINESEASON.
- * Основа — эффекты NASSAL (api-game.nassal.pro/api/public/effect/list).
+ * Каталог предметов PODNASRAL — Minecraft-лор сезона.
  */
-import {
-  NASSAL_MATERIALS,
-  NASSAL_MODIFIER_ITEMS,
-  NASSAL_RECIPES,
-} from "./nassal-effect-seeds";
+import { MC_MATERIALS, MC_MODIFIER_ITEMS, MC_RECIPES } from "./mc-item-seeds";
 
 export type { CatalogItemSeed, CatalogRecipeSeed } from "./item-catalog-types";
 
-export const BALANCE_ITEM_CATALOG = [...NASSAL_MATERIALS, ...NASSAL_MODIFIER_ITEMS];
+export const BALANCE_ITEM_CATALOG = [...MC_MATERIALS, ...MC_MODIFIER_ITEMS];
 
-export const BALANCE_RECIPES = NASSAL_RECIPES;
+export const BALANCE_RECIPES = MC_RECIPES;

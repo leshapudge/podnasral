@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Circle, Clock, Gamepad2, Sparkles, Star, Timer, Trophy } from "lucide-react";
+import { Circle, Clock, Gamepad2, ListChecks, Sparkles, Star, Timer, Trophy } from "lucide-react";
 import { McAvatar } from "../mc-avatar";
 import { McItemSlot } from "../mc-item-slot";
 import { ItemDetailPopup } from "../item-detail-popup";
@@ -14,17 +14,18 @@ import type { HomeSeasonData } from "@/lib/landing/home-data.types";
 import { Progress } from "@/components/ui/progress";
 import {
   api,
-  type LeaderboardEntry,
+  type StreamerRosterEntry,
   type ParticipantDetail,
   type ParticipantInventoryItem,
 } from "@/lib/api/client";
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import { summarizeItemEffects } from "@/lib/inventory/item-effects";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { rarityConfig } from "@/lib/inventory/rarity";
 import { formatDurationMs, formatHltbHours } from "@/lib/utils/time";
 import { formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { StarRatingDisplay } from "@/components/streamer/star-rating";
 
 const STATUS_LABELS: Record<string, string> = {
   IDLE: "Участник",
@@ -37,26 +38,25 @@ const STATUS_LABELS: Record<string, string> = {
   CASINO: "Казино",
 };
 
-function sortStreamers(list: LeaderboardEntry[]) {
+function sortStreamers(list: StreamerRosterEntry[]) {
   return [...list].sort((a, b) => {
     if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
-    return a.rank - b.rank;
+    return a.displayOrder - b.displayOrder;
   });
 }
 
 interface StreamersHubPanelProps {
-  initialLeaderboard?: LeaderboardEntry[];
   season?: HomeSeasonData | null;
 }
 
-export function StreamersHubPanel({
-  initialLeaderboard = [],
-  season = null,
-}: StreamersHubPanelProps) {
+type DetailTab = "profile" | "completed";
+
+export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
   const eventUpcoming = season?.isUpcoming ?? false;
-  const [streamers, setStreamers] = useState<LeaderboardEntry[]>(initialLeaderboard);
+  const [streamers, setStreamers] = useState<StreamerRosterEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ParticipantDetail | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>("profile");
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [popupItem, setPopupItem] = useState<ParticipantInventoryItem | null>(null);
   const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
@@ -75,7 +75,7 @@ export function StreamersHubPanel({
 
   const refreshList = useCallback(async () => {
     try {
-      const list = await api.getLeaderboard();
+      const list = await api.getStreamersRoster();
       setStreamers(list ?? []);
     } catch {
       /* keep cached */
@@ -89,6 +89,10 @@ export function StreamersHubPanel({
   }, [refreshList]);
 
   useEffect(() => {
+    setDetailTab("profile");
+  }, [selectedId]);
+
+  useEffect(() => {
     if (!selectedId && sorted.length > 0) {
       setSelectedId(sorted[0].id);
     }
@@ -97,6 +101,11 @@ export function StreamersHubPanel({
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      return;
+    }
+    if (selectedId.startsWith("roster:")) {
+      setDetail(null);
+      setLoadingDetail(false);
       return;
     }
 
@@ -170,6 +179,8 @@ export function StreamersHubPanel({
                       <p className="truncate text-[10px] text-[#7a6a52]">
                         {s.isLive ? (
                           <span className="text-primary">● LIVE</span>
+                        ) : !s.registered ? (
+                          "Ожидает входа"
                         ) : eventUpcoming ? (
                           "Участник"
                         ) : (
@@ -178,7 +189,9 @@ export function StreamersHubPanel({
                         {!eventUpcoming && s.currentGame ? ` · ${s.currentGame.title}` : ""}
                       </p>
                     </div>
-                    <span className="font-display text-[10px] text-hypixel-gold">#{s.rank}</span>
+                    <span className="font-display text-[10px] text-hypixel-gold">
+                      {s.registered ? `#${s.rank}` : `#${s.displayOrder}`}
+                    </span>
                   </button>
                 </li>
               );
@@ -197,11 +210,40 @@ export function StreamersHubPanel({
             <p className="text-center text-sm text-[#7a6a52]">Выберите стримера</p>
           )}
 
-          {selectedListItem && loadingDetail && !detail && (
+          {selectedListItem && !selectedListItem.registered && (
+            <div className="relative space-y-5">
+              {selectedListItem.twitchLogin && (
+                <TwitchStreamButton
+                  login={selectedListItem.twitchLogin}
+                  isLive={selectedListItem.isLive}
+                  variant="icon"
+                  className="absolute right-0 top-0 h-7 w-7"
+                />
+              )}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start pr-9">
+                <McAvatar
+                  nickname={selectedListItem.nickname}
+                  twitchLogin={selectedListItem.twitchLogin}
+                  src={selectedListItem.avatar}
+                  size={64}
+                  className="mx-auto sm:mx-0"
+                />
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <h3 className="font-display text-xl text-[#e8d5b0]">{selectedListItem.nickname}</h3>
+                  <p className="mt-2 text-sm text-[#7a6a52]">
+                    Стример ещё не входил на сайт через Twitch. После первого входа здесь появятся
+                    очки, инвентарь и текущая игра.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedListItem && selectedListItem.registered && loadingDetail && !detail && (
             <p className="text-center text-sm text-[#7a6a52]">Загрузка...</p>
           )}
 
-          {selectedListItem && detail && (
+          {selectedListItem && selectedListItem.registered && detail && (
             <div className="relative space-y-5">
               {detail.twitchLogin && (
                 <TwitchStreamButton
@@ -260,6 +302,108 @@ export function StreamersHubPanel({
                 </div>
               </div>
 
+              <nav className="flex gap-1 rounded border border-[#1a1208] bg-[#0d0a08]/80 p-1">
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("profile")}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-[10px] uppercase tracking-wide transition-colors",
+                    detailTab === "profile"
+                      ? "bg-primary/20 text-[#e8d5b0] ring-1 ring-primary/40"
+                      : "text-[#7a6a52] hover:bg-[#1a1208]/80",
+                  )}
+                >
+                  <Gamepad2 className="h-3.5 w-3.5" />
+                  Профиль
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("completed")}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded px-3 py-2 text-[10px] uppercase tracking-wide transition-colors",
+                    detailTab === "completed"
+                      ? "bg-primary/20 text-[#e8d5b0] ring-1 ring-primary/40"
+                      : "text-[#7a6a52] hover:bg-[#1a1208]/80",
+                  )}
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Пройденные
+                  {detail.completedGames.length > 0 && (
+                    <span className="rounded bg-hypixel-gold/20 px-1.5 font-display text-[9px] text-hypixel-gold">
+                      {detail.completedGames.length}
+                    </span>
+                  )}
+                </button>
+              </nav>
+
+              {detailTab === "completed" && (
+                <section className="rounded border border-[#1a1208] bg-[#1a1208]/50 p-4">
+                  <OsSectionTitle className="!mt-0">Пройденные игры</OsSectionTitle>
+                  {detail.completedGames.length === 0 ? (
+                    <p className="mt-3 text-sm text-[#7a6a52]">
+                      Пока нет игр с отзывом — после прохождения стример ставит оценку и пишет
+                      впечатления.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-3">
+                      {detail.completedGames.map((game) => (
+                        <li
+                          key={game.id}
+                          className="rounded border border-[#1a1208] bg-[#0d0a08]/60 p-3 sm:p-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                            <div className="game-cover-frame relative aspect-[460/215] w-full max-w-[160px] shrink-0 overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={resolveGameCover(game.title, game.cover)}
+                                alt={game.title}
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <p className="font-display text-base text-[#e8d5b0]">
+                                  {game.title}
+                                </p>
+                                <StarRatingDisplay rating={game.rating} size="md" />
+                              </div>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {game.finalScore != null && (
+                                  <span className="inline-flex items-center gap-1.5 rounded border border-hypixel-gold/30 bg-hypixel-gold/10 px-2.5 py-1">
+                                    <Trophy className="h-3.5 w-3.5 text-hypixel-gold" />
+                                    <span className="font-display text-sm text-hypixel-gold">
+                                      +{formatNumber(game.finalScore)} очков
+                                    </span>
+                                  </span>
+                                )}
+                                {game.difficulty && (
+                                  <span className="rounded border border-[#2a2118] bg-[#1a1208]/60 px-2 py-1 text-[10px] uppercase text-[#7a6a52]">
+                                    {game.difficulty}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-2 text-sm leading-relaxed text-[#a89070]">
+                                «{game.review}»
+                              </p>
+                              {game.completedAt && (
+                                <p className="mt-2 text-[10px] text-[#5c4a32]">
+                                  {new Date(game.completedAt).toLocaleDateString("ru-RU", {
+                                    day: "numeric",
+                                    month: "long",
+                                  })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
+
+              {detailTab === "profile" && (
+                <>
               {/* Текущая игра */}
               <section className="rounded border border-[#1a1208] bg-[#1a1208]/50 p-4">
                 <OsSectionTitle className="!mt-0">Сейчас играет</OsSectionTitle>
@@ -367,7 +511,7 @@ export function StreamersHubPanel({
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {modifiers.map((item) => {
                       const rarity = rarityConfig[item.rarity as keyof typeof rarityConfig];
-                      const texture = item.iconUrl ?? getItemTexture(item.slug);
+                      const texture = resolveItemIcon(item.slug, item.iconUrl);
                       const summary = summarizeItemEffects(item.effects);
                       return (
                         <button
@@ -384,6 +528,7 @@ export function StreamersHubPanel({
                         >
                           <div className="relative shrink-0">
                             <McItemSlot
+                              slug={item.slug}
                               src={texture}
                               alt={item.name}
                               size="md"
@@ -432,7 +577,8 @@ export function StreamersHubPanel({
                         title={item.name}
                       >
                         <McItemSlot
-                          src={item.iconUrl ?? getItemTexture(item.slug)}
+                          slug={item.slug}
+                          src={resolveItemIcon(item.slug, item.iconUrl)}
                           alt={item.name}
                           size="sm"
                           active
@@ -473,6 +619,8 @@ export function StreamersHubPanel({
                     ))}
                   </ul>
                 </section>
+              )}
+                </>
               )}
             </div>
           )}

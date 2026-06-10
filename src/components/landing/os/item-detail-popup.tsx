@@ -9,7 +9,7 @@ import {
   ITEM_KIND_LABELS,
   type ItemEffects,
 } from "@/lib/inventory/item-effects";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { rarityConfig } from "@/lib/inventory/rarity";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,7 @@ export function ItemDetailPopup({ item, anchorRect, visible, onClose }: ItemDeta
   const rarity = rarityConfig[item.rarity as keyof typeof rarityConfig];
   const effectLines = describeItemEffects(item.effects);
   const flavor = getItemFlavorText(item.slug, item.description);
-  const texture = item.iconUrl ?? getItemTexture(item.slug);
+  const texture = resolveItemIcon(item.slug, item.iconUrl);
 
   useEffect(() => setMounted(true), []);
 
@@ -97,6 +97,7 @@ export function ItemDetailPopup({ item, anchorRect, visible, onClose }: ItemDeta
       >
         <div className="flex flex-col items-center text-center">
           <McItemSlot
+            slug={item.slug}
             src={texture}
             alt={item.name}
             size="lg"

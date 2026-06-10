@@ -50,6 +50,7 @@ export function CraftingSlot({
             )}
           />
           <McItemSlot
+            slug={slug}
             src={getItemTexture(slug)}
             alt={name ?? slug}
             size={size}

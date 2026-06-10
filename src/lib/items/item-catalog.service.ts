@@ -1,8 +1,13 @@
+import { BALANCE_ITEM_CATALOG } from "@/lib/balance/item-catalog";
 import prisma from "@/lib/db/prisma";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
+
+const CATALOG_SLUGS = BALANCE_ITEM_CATALOG.map((i) => i.slug);
 
 export async function listItemCatalog() {
   const [items, recipes] = await Promise.all([
     prisma.itemDefinition.findMany({
+      where: { slug: { in: CATALOG_SLUGS } },
       orderBy: [{ rarity: "desc" }, { name: "asc" }],
     }),
     prisma.craftRecipe.findMany({
@@ -38,7 +43,7 @@ export async function listItemCatalog() {
     rarity: item.rarity,
     kind: item.kind,
     effects: item.effectsJson as Record<string, number>,
-    iconUrl: item.iconUrl,
+    iconUrl: resolveItemIcon(item.slug, item.iconUrl),
     recipes: craftedFrom.get(item.slug) ?? [],
   }));
 }

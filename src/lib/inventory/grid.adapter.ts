@@ -1,5 +1,5 @@
 import type { MeData } from "@/lib/api/client";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import {
   INVENTORY_SIZE,
   emptyGrid,
@@ -27,7 +27,7 @@ export function inventoryGridFromMe(me: MeData): InventoryGrid {
             ? "ARTIFACT"
             : "ITEM",
       name: item.name,
-      icon: item.iconUrl ?? getItemTexture(item.slug),
+      icon: resolveItemIcon(item.slug, item.iconUrl),
       rarity: mapRarity(item.rarity),
       quantity: item.quantity,
       maxStack: 64,

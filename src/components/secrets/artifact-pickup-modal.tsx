@@ -12,8 +12,11 @@ export function ArtifactPickupModal() {
   const audio = useAudioOptional();
 
   useEffect(() => {
-    if (pendingArtifact) audio?.emit("artifact:found", { rarity: "EPIC" });
-  }, [pendingArtifact, audio]);
+    if (!pendingArtifact) return;
+    audio?.emit("artifact:found", { rarity: "EPIC" });
+    const t = setTimeout(() => setPendingArtifact(null), 4500);
+    return () => clearTimeout(t);
+  }, [pendingArtifact, audio, setPendingArtifact]);
 
   return (
     <AnimatePresence>
@@ -24,9 +27,9 @@ export function ArtifactPickupModal() {
           exit={{ opacity: 0, y: -20, scale: 0.9 }}
           className="fixed bottom-8 left-1/2 z-[120] -translate-x-1/2"
         >
-          <button
-            type="button"
-            onClick={() => setPendingArtifact(null)}
+          <div
+            role="status"
+            aria-live="polite"
             className="glass-panel flex items-center gap-4 rounded-xl border border-hypixel-gold/40 px-6 py-4 shadow-2xl"
           >
             <motion.div
@@ -46,7 +49,7 @@ export function ArtifactPickupModal() {
               </p>
               <p className="font-display font-bold">{pendingArtifact.name}</p>
             </div>
-          </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

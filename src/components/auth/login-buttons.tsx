@@ -20,7 +20,7 @@ interface LoginButtonsProps {
   disabled?: boolean;
 }
 
-export function LoginButtons({ callbackUrl = "/streamer", disabled }: LoginButtonsProps) {
+export function LoginButtons({ callbackUrl = "/?tab=kazik", disabled }: LoginButtonsProps) {
   return (
     <div className="flex w-full flex-col gap-3">
       {providers.map((provider) => (

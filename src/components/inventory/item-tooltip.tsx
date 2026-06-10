@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import type { InventoryStack } from "@/lib/inventory/types";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { rarityConfig, kindLabels } from "@/lib/inventory/rarity";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +41,8 @@ export function ItemTooltip({ stack, x, y, visible }: ItemTooltipProps) {
     >
       <div className="flex items-start gap-2">
         <McItemSlot
-          src={getItemTexture(stack.templateId)}
+          slug={stack.templateId}
+          src={resolveItemIcon(stack.templateId, stack.icon)}
           alt={stack.name}
           size="sm"
           enchanted={stack.rarity === "EPIC" || stack.rarity === "LEGENDARY"}

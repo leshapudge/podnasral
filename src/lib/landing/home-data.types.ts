@@ -36,16 +36,6 @@ export interface HomeBossData {
   topDamagers: { nickname: string; damage: number; percent: number }[];
 }
 
-export interface HomeFeedItem {
-  id: string;
-  type: "craft" | "game" | "boss" | "achievement" | "rank";
-  player: string;
-  action: string;
-  item: string;
-  power: string;
-  time: string;
-}
-
 export interface HomeStat {
   label: string;
   value: string | number;
@@ -59,6 +49,4 @@ export interface HomePageData {
   leaderboard: HomeLeaderboardEntry[];
   featuredBoss: HomeBossData | null;
   bosses: HomeBossData[];
-  feed: HomeFeedItem[];
-  eventStats: HomeStat[];
 }

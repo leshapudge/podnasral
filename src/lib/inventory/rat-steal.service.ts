@@ -2,7 +2,7 @@ import prisma from "@/lib/db/prisma";
 import { logActivity } from "@/lib/activity/activity.service";
 
 /**
- * «Крыса» из RGG: после прохождения ворует один материал у лидера таблицы.
+ * После прохождения: шанс украсть материал у лидера таблицы.
  */
 export async function tryRatSteal(params: {
   thiefParticipantId: string;

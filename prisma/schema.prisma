@@ -99,6 +99,10 @@ model User {
   role          UserRole  @default(VIEWER)
   twitchId      String?   @unique @map("twitch_id")
   twitchLogin   String?   @map("twitch_login")
+  arcadeCoins    Int      @default(0) @map("arcade_coins")
+  arcadeDiamonds Int      @default(0) @map("arcade_diamonds")
+  arcadeNetWorth Int      @default(0) @map("arcade_net_worth")
+  arcadeLastTap  DateTime? @map("arcade_last_tap")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -107,6 +111,7 @@ model User {
   participant  Participant?
   activityLogs ActivityLog[]
 
+  @@index([arcadeNetWorth(sort: Desc)])
   @@map("users")
 }
 
@@ -295,10 +300,14 @@ model GameSession {
   completedAt    DateTime?      @map("completed_at")
   finalScore     Int?           @map("final_score")
   dropPenalty    Int?           @map("drop_penalty")
+  playerRating   Int?           @map("player_rating")
+  playerReview   String?        @db.Text @map("player_review")
   scoreBreakdown Json?          @map("score_breakdown")
-  modifiersJson      Json @default("[]") @map("modifiers_json")
-  casinoSpinsTotal   Int  @default(0) @map("casino_spins_total")
-  casinoSpinsUsed    Int  @default(0) @map("casino_spins_used")
+  modifiersJson              Json    @default("[]") @map("modifiers_json")
+  modifiersSnapshotJson      Json    @default("[]") @map("modifiers_snapshot_json")
+  casinoSpinsTotal           Int     @default(0) @map("casino_spins_total")
+  casinoSpinsUsed            Int     @default(0) @map("casino_spins_used")
+  casinoManualBonusApplied   Boolean @default(false) @map("casino_manual_bonus_applied")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -1,31 +1,19 @@
 import type { CompetitionContext } from "@/lib/balance/catch-up";
 import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/score-calculator";
 
-function seededRandom(seed: string): () => number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-  }
-  return () => {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}
+const BASE_COMPLETE_SPINS = 3;
 
-/** Сколько фри-спинов на «Колесе приколов» после игры. */
+/** Сколько фри-спинов в слоте наград после игры. */
 export function calculateCasinoSpins(params: {
   modifiers: ModifierEffects[];
   hltbMainHours?: number;
-  seed: string;
   competition?: CompetitionContext;
   isDrop?: boolean;
 }): number {
   if (params.isDrop) return 1;
 
   const combined = combineModifierEffects(params.modifiers);
-  const baseRolls = 1 + Math.floor(seededRandom(params.seed)() * 2);
+  const baseRolls = BASE_COMPLETE_SPINS;
   const extra = combined.extraLootRolls ?? 0;
   const pinata = combined.pinataLootBonus ?? 0;
   const longGameThreshold = combined.longGameHltbMin ?? 15;

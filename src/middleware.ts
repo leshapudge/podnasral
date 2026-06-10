@@ -8,7 +8,9 @@ export function middleware(req: NextRequest) {
     req.cookies.get("__Secure-authjs.session-token")?.value;
 
   if ((pathname.startsWith("/streamer") || pathname.startsWith("/admin")) && !sessionToken) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const login = new URL("/login", req.url);
+    login.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(login);
   }
 
   return NextResponse.next();

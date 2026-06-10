@@ -1,4 +1,5 @@
 import { jsonError } from "@/lib/api/errors";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { requireAuth } from "@/lib/auth/guards";
 import prisma from "@/lib/db/prisma";
 import { ensureEventParticipant } from "@/lib/participants/ensure-event-participant";
@@ -60,7 +61,7 @@ export async function GET() {
         kind: i.itemDefinition.kind,
         quantity: i.quantity,
         effects: i.itemDefinition.effectsJson,
-        iconUrl: i.itemDefinition.iconUrl,
+        iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
       })),
       currentSession,
     });

@@ -1,12 +1,29 @@
 /** Inline fallback — работает даже если Tailwind-chunk не загрузился */
 export const CRITICAL_OS_CSS = `
+@font-face {
+  font-family: Monocraft;
+  src: url("/fonts/Monocraft.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Monocraft;
+  src: url("/fonts/Monocraft-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root { --font-mc: Monocraft, ui-monospace, monospace; }
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0;
   min-height: 100%;
   background: #0a1628;
   color: #e8d5b0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-mc);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
 }
 img { max-width: 100%; height: auto; display: block; }
 a { color: #55c57a; }
@@ -62,7 +79,7 @@ a { color: #55c57a; }
   padding: 0 1rem;
 }
 .mc-os-bezel-title {
-  font-family: var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-mc);
   font-size: 10px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -109,7 +126,7 @@ a { color: #55c57a; }
   cursor: pointer;
   color: #7a6a52;
   padding: 0.625rem 0.75rem;
-  font-family: var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-mc);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -183,7 +200,7 @@ a { color: #55c57a; }
   border-top: 2px solid #1a1208;
   background: #0d0a08;
   padding: 0 1rem;
-  font-family: var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-mc);
   font-size: 10px;
   color: #5c4a32;
 }
@@ -197,7 +214,7 @@ a { color: #55c57a; }
   color: #e8d5b0 !important;
   text-decoration: none;
   cursor: pointer;
-  font-family: var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-mc);
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.05em;
@@ -279,7 +296,7 @@ a { color: #55c57a; }
   border-top: 1px dashed rgba(92, 74, 50, 0.8);
 }
 .mc-section-title span {
-  font-family: var(--font-silkscreen), ui-monospace, monospace;
+  font-family: var(--font-mc);
   font-size: 11px;
   letter-spacing: 0.25em;
   text-transform: uppercase;

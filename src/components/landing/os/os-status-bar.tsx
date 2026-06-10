@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AppTabSlug } from "@/lib/landing/app-tabs";
+import { EVENT_BRAND_VERSION } from "@/lib/event/event-brand";
 import type { HomeSeasonData } from "@/lib/landing/home-data.types";
 
 interface OsStatusBarProps {
   season: HomeSeasonData | null;
-  onTabChange: (tab: AppTabSlug) => void;
 }
 
-export function OsStatusBar({ season, onTabChange }: OsStatusBarProps) {
+export function OsStatusBar({ season }: OsStatusBarProps) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -27,7 +26,7 @@ export function OsStatusBar({ season, onTabChange }: OsStatusBarProps) {
 
   return (
     <footer className="mc-os-status">
-      <span className="tracking-wider">mineseason_v1.0.0</span>
+      <span className="tracking-wider">{EVENT_BRAND_VERSION}</span>
       <span className="hidden text-center text-[#7a6a52] sm:inline">
         {season
           ? season.isUpcoming
@@ -36,13 +35,6 @@ export function OsStatusBar({ season, onTabChange }: OsStatusBarProps) {
           : "Сезон не активен"}
       </span>
       <div className="flex items-center gap-3 tabular-nums text-[#a89070]">
-        <button
-          type="button"
-          onClick={() => onTabChange("secrets")}
-          className="hidden hover:text-primary sm:inline"
-        >
-          Секреты
-        </button>
         <a href="/settings" className="hidden hover:text-primary sm:inline">
           Звук
         </a>

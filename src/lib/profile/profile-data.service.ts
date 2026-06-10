@@ -1,5 +1,6 @@
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import type { MeData } from "@/lib/api/client";
-import type { PlayerClass } from "./mock-data";
+import type { PlayerClass } from "./profile-types";
 
 export interface ProfileSummary {
   level: number;
@@ -62,7 +63,7 @@ export interface ProfilePageData {
   history: ProfileHistoryEntry[];
 }
 
-export function buildProfileFromMe(me: MeData, seasonName = "MINESEASON"): ProfilePageData {
+export function buildProfileFromMe(me: MeData, seasonName = EVENT_BRAND): ProfilePageData {
   const points = me.participant?.totalPoints ?? 0;
   const level = Math.max(1, Math.floor(points / 500) + 1);
   const xpInLevel = points % 500;

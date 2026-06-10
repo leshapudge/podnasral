@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import { useSecrets } from "./secret-context";
 import { getAchievementTexture } from "@/lib/secrets/achievement-assets";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { getArtifactTexture } from "@/lib/secrets/artifact-assets";
 import { MC_ASSETS } from "@/lib/landing/assets";
 import { cn } from "@/lib/utils";
@@ -28,8 +29,8 @@ export function CollectionPanel() {
     <div className="space-y-6">
       <div className="text-center">
         <Trophy className="mx-auto h-8 w-8 text-hypixel-gold" />
-        <h2 className="mt-2 font-display text-xl text-[#e8d5b0]">Секретная коллекция</h2>
-        <p className="text-xs text-[#7a6a52]">Артефакты и достижения по всему MINESEASON</p>
+        <h2 className="mt-2 font-display text-xl text-[#e8d5b0]">Достижения</h2>
+        <p className="text-xs text-[#7a6a52]">Коллекция наград и артефактов по всему {EVENT_BRAND}</p>
       </div>
 
       <div className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-4">

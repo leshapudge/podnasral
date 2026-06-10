@@ -1,5 +1,5 @@
 /**
- * Unified API client for MINESEASON.
+ * Unified API client for PODNASRAL.
  * All routes return { success: true, data } or legacy shapes (auto-unwrapped).
  */
 
@@ -36,6 +36,7 @@ function unwrap<T>(json: unknown): T {
   // Legacy v2 wrappers
   if ("event" in o) return o.event as T;
   if ("leaderboard" in o) return o.leaderboard as T;
+  if ("streamers" in o) return o.streamers as T;
   if ("boss" in o) return o.boss as T;
   if ("items" in o && !("nextCursor" in o)) return o.items as T;
   if ("recipes" in o) return o.recipes as T;
@@ -105,6 +106,11 @@ export interface LeaderboardEntry {
   } | null;
 }
 
+export interface StreamerRosterEntry extends LeaderboardEntry {
+  registered: boolean;
+  displayOrder: number;
+}
+
 export interface ParticipantInventoryItem {
   id: string;
   slug: string;
@@ -136,6 +142,18 @@ export interface ParticipantDetail {
     status: string;
     finalScore: number | null;
     dropPenalty: number | null;
+    difficulty: string | null;
+    completedAt: string | null;
+    playerRating: number | null;
+    playerReview: string | null;
+  }[];
+  completedGames: {
+    id: string;
+    title: string;
+    cover: string | null;
+    rating: number;
+    review: string;
+    finalScore: number | null;
     difficulty: string | null;
     completedAt: string | null;
   }[];
@@ -186,18 +204,31 @@ export interface SessionData {
   game: { title: string; coverImage: string | null };
   finalScore: number | null;
   dropPenalty: number | null;
+  playerRating: number | null;
+  playerReview: string | null;
+  needsReview: boolean;
   scoreBreakdown: Record<string, number> | null;
   loot: { slug: string; name: string; rarity: string; iconUrl?: string | null }[];
+  activeModifiers: {
+    slug: string;
+    name: string;
+    iconUrl: string;
+    effects: string[];
+  }[];
   casino: {
     spinsTotal: number;
     spinsUsed: number;
     spinsRemaining: number;
     finished: boolean;
+    manualBonusApplied: boolean;
+    maxManualBonusSpins: number;
   };
 }
 
 export interface CasinoSpinResult {
   drop: { slug: string; name: string; rarity: string; iconUrl?: string | null };
+  reels: { id: string; label: string; texture: string }[];
+  activeModifiers: SessionData["activeModifiers"];
   casino: SessionData["casino"];
   session: SessionData;
 }
@@ -226,6 +257,43 @@ export interface CraftRecipeData {
   }[];
 }
 
+export interface ArcadeWallet {
+  coins: number;
+  diamonds: number;
+  netWorth: number;
+}
+
+export interface ArcadeLeaderboardEntry {
+  rank: number;
+  twitchLogin: string | null;
+  name: string;
+  image: string | null;
+  coins: number;
+  diamonds: number;
+  netWorth: number;
+}
+
+export interface ArcadeLeaderboards {
+  winners: ArcadeLeaderboardEntry[];
+  losers: ArcadeLeaderboardEntry[];
+}
+
+export interface ArcadeSpinResult {
+  won: boolean;
+  delta: number;
+  payout: number;
+  bet: number;
+  matchKind: "none" | "pair" | "triple";
+  winTitle?: string | null;
+  symbolId?: string | null;
+  symbolLabel?: string | null;
+  multiplier?: number;
+  reels: { id: string; label: string; texture: string }[];
+  coins: number;
+  diamonds: number;
+  netWorth: number;
+}
+
 export interface GameSearchResult {
   rawgId: number;
   title: string;
@@ -242,6 +310,7 @@ export const api = {
 
   getEvent: () => request<EventData | null>(`${API}/event`),
   getLeaderboard: () => request<LeaderboardEntry[]>(`${API}/leaderboard`),
+  getStreamersRoster: () => request<StreamerRosterEntry[]>(`${API}/streamers`),
   getParticipant: (id: string) => request<ParticipantDetail>(`${API}/participants/${id}`),
   getBoss: () => request<BossData | null>(`${API}/boss`),
   getFeed: (limit = 30) =>
@@ -294,6 +363,12 @@ export const api = {
   dropSession: (sessionId: string) =>
     request(`${API}/sessions/${sessionId}/drop`, { method: "POST" }),
 
+  submitSessionReview: (sessionId: string, rating: number, review: string) =>
+    request<{ session: SessionData }>(`${API}/sessions/${sessionId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ rating, review }),
+    }),
+
   acknowledgeSession: () =>
     request(`${API}/sessions/x/acknowledge`, { method: "POST" }),
 
@@ -302,9 +377,26 @@ export const api = {
       method: "POST",
     }),
 
+  addCasinoBonusSpins: (sessionId: string, bonusSpins: number) =>
+    request<{ casino: SessionData["casino"]; session: SessionData }>(
+      `${API}/sessions/${sessionId}/casino/bonus-spins`,
+      {
+        method: "POST",
+        body: JSON.stringify({ bonusSpins }),
+      },
+    ),
+
   getRecipes: () => request<CraftRecipeData[]>(`${API}/craft/recipes`),
 
   getItemCatalog: () => request<CatalogItemData[]>(`${API}/items`),
+
+  getArcadeMe: () => request<ArcadeWallet>(`${API}/arcade/me`),
+  getArcadeLeaderboard: () => request<ArcadeLeaderboards>(`${API}/arcade/leaderboard`),
+  arcadeSpin: (bet: number) =>
+    request<ArcadeSpinResult>(`${API}/arcade/spin`, {
+      method: "POST",
+      body: JSON.stringify({ bet }),
+    }),
 
   craft: (recipeId: string) =>
     request(`${API}/craft/${recipeId}`, { method: "POST" }),

@@ -1,53 +1,59 @@
-import { MC_ASSETS } from "@/lib/landing/assets";
+import { BALANCE_ITEM_CATALOG } from "@/lib/balance/item-catalog";
 
-const MC_ITEM = (name: string) =>
-  `https://assets.mcasset.cloud/1.21.4/assets/minecraft/textures/item/${name}.png`;
+/** Локальные PNG — без CDN, не ломаются в браузере. Синхронизация: npm run icons:sync */
+export function localItemIcon(slug: string): string {
+  return `/assets/mc/items/${slug}.png`;
+}
 
-const MC_BLOCK = (name: string) =>
-  `https://assets.mcasset.cloud/1.21.4/assets/minecraft/textures/block/${name}.png`;
+export const ITEM_ICON_UNKNOWN = localItemIcon("_unknown");
 
-/** Инвентарные предметы → текстуры Minecraft */
-export const ITEM_TEXTURES: Record<string, string> = {
-  // materials
-  iron_shard: MC_ITEM("iron_nugget"),
-  gold_dust: MC_ITEM("gold_nugget"),
-  emerald_splinter: MC_ASSETS.items.emerald,
-  streamer_tear: MC_ITEM("ghast_tear"),
-  junk_scrap: MC_ITEM("rotten_flesh"),
-  // NASSAL effects
-  good_flat_4: MC_ITEM("emerald"),
-  good_flat_8: MC_ITEM("diamond"),
-  bad_flat_3: MC_ITEM("poisonous_potato"),
-  bad_flat_6: MC_ITEM("spider_eye"),
-  anabolics: MC_ITEM("potion"),
-  one_of_oneils: MC_ITEM("netherite_sword"),
-  parachute: MC_ITEM("feather"),
-  wasted: MC_ITEM("fire_charge"),
-  asnaeb: MC_ITEM("totem_of_undying"),
-  body_armor: MC_ITEM("iron_chestplate"),
-  small_theft_effect: MC_ITEM("rabbit_hide"),
-  snatched: MC_ITEM("golden_sword"),
-  factory_assembly: MC_ITEM("comparator"),
-  speedometer: MC_ITEM("clock"),
-  number_9_extra: MC_ITEM("experience_bottle"),
-  reroll_fetishist: MC_ITEM("recovery_compass"),
-  city_map: MC_ITEM("filled_map"),
-  container_with_junk: MC_BLOCK("barrel"),
-  genre_expert: MC_ITEM("writable_book"),
-  genre_fever: MC_ITEM("blaze_powder"),
-  old_timer_lawlessness: MC_ITEM("music_disc_13"),
-  shorties_epidemic: MC_BLOCK("hay_block_side"),
-  free_spins: MC_ASSETS.items.netherStar,
-  leprechaun_boost: MC_ITEM("golden_carrot"),
-  leprechaun_debuff: MC_ITEM("fermented_spider_eye"),
-  bowling_bro: MC_ITEM("snowball"),
-  movie_ticket: MC_ITEM("paper"),
-  // legacy
-  emerald_charm: MC_ASSETS.items.emerald,
-  shield_totem: MC_ASSETS.items.totem,
-  nether_star: MC_ASSETS.items.netherStar,
-};
+/** Все slug'и с локальными иконками (совпадает с scripts/sync-item-icons.mjs). */
+const CATALOG_SLUGS = [
+  ...BALANCE_ITEM_CATALOG.map((i) => i.slug),
+  "emerald_charm",
+  "shield_totem",
+  "nether_star",
+] as const;
 
-export function getItemTexture(templateId: string) {
-  return ITEM_TEXTURES[templateId] ?? MC_BLOCK("stone");
+export type ItemTextureSlug = (typeof CATALOG_SLUGS)[number];
+
+const ITEM_TEXTURE_SLUGS = new Set<string>(CATALOG_SLUGS);
+
+export const ITEM_TEXTURES: Record<string, string> = Object.fromEntries(
+  CATALOG_SLUGS.map((slug) => [slug, localItemIcon(slug)]),
+);
+
+export function isCatalogItemSlug(slug: string): boolean {
+  return ITEM_TEXTURE_SLUGS.has(slug);
+}
+
+export function getItemTexture(slug: string): string {
+  if (slug.startsWith("slot_")) return localItemIcon(slug);
+  return ITEM_TEXTURES[slug] ?? ITEM_ICON_UNKNOWN;
+}
+
+/** Всегда локальный путь по slug — iconUrl из БД не используем. */
+export function resolveItemIcon(slug: string, _iconUrl?: string | null): string {
+  return getItemTexture(slug);
+}
+
+/** Только локальные запасные варианты — без «бумаги». */
+export function getItemIconFallbackChain(slug: string): string[] {
+  const chain: string[] = [];
+  const primary = getItemTexture(slug);
+  chain.push(primary);
+  if (primary !== ITEM_ICON_UNKNOWN) chain.push(ITEM_ICON_UNKNOWN);
+  return chain;
+}
+
+export const MODIFIER_ITEM_SLUGS = BALANCE_ITEM_CATALOG.filter((i) => i.kind === "MODIFIER").map(
+  (i) => i.slug,
+);
+
+if (process.env.NODE_ENV !== "production") {
+  for (const { slug } of BALANCE_ITEM_CATALOG) {
+    if (!ITEM_TEXTURE_SLUGS.has(slug)) {
+      console.warn(`[item-assets] нет локальной иконки для slug: ${slug}`);
+    }
+  }
 }

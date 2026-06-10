@@ -1,4 +1,4 @@
-# MINESEASON
+# PODNASRAL
 
 14-day streaming event platform. Streamers compete for points through game auctions, HLTB-based scoring, loot, and a world boss.
 

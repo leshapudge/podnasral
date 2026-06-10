@@ -88,15 +88,18 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+const TOAST_AUTO_DISMISS_MS = 4500;
+
   const addToast = useCallback(
     (title: string, body?: string, icon?: string, texture?: string) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, title, body, icon, texture }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
-  },
-  []);
+      const id = `${Date.now()}-${Math.random()}`;
+      setToasts((prev) => [...prev, { id, title, body, icon, texture }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, TOAST_AUTO_DISMISS_MS);
+    },
+    [],
+  );
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -115,7 +118,7 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
           m.getAchievementDef(slug),
         );
         const { getAchievementTexture } = await import("@/lib/secrets/achievement-assets");
-        addToast("Секрет разблокирован!", def?.name, def?.icon, getAchievementTexture(slug));
+        addToast("Достижение разблокировано!", def?.name, def?.icon, getAchievementTexture(slug));
         emitAudioEvent("achievement:secretUnlock", { secret: true });
         if (session?.user) await syncUnlock("achievement", slug);
       }
@@ -146,7 +149,7 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
       const def = defs.getAchievementDef(slug);
       const { getAchievementTexture } = await import("@/lib/secrets/achievement-assets");
       if (session?.user) await syncUnlock("achievement", slug);
-      addToast("Секрет разблокирован!", def?.name, def?.icon, getAchievementTexture(slug));
+      addToast("Достижение разблокировано!", def?.name, def?.icon, getAchievementTexture(slug));
       emitAudioEvent("achievement:secretUnlock", { secret: true });
       return { unlocked: true, slug, name: def?.name, icon: def?.icon };
     },

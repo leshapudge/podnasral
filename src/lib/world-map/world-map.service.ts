@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { authorizedStreamerUserFilter } from "@/lib/participants/authorized-streamer";
 import { WORLD_BIOMES, BIOME_PATHS } from "./biomes";
 import { getDungeonMarkers } from "./dungeons";
 import { getEventMarkers } from "./events";
@@ -22,6 +23,7 @@ export async function getWorldMapData(): Promise<WorldMapData> {
     include: {
       boss: true,
       participants: {
+        where: { user: authorizedStreamerUserFilter },
         include: { user: true },
         orderBy: { displayOrder: "asc" },
         take: 12,

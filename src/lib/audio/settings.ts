@@ -1,6 +1,8 @@
 import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from "./types";
 
-const STORAGE_KEY = "mineseason-audio-v1";
+import { EVENT_BRAND_LOWER } from "@/lib/event/event-brand";
+
+const STORAGE_KEY = `${EVENT_BRAND_LOWER}-audio-v1`;
 
 export function loadAudioSettings(): AudioSettings {
   if (typeof window === "undefined") return DEFAULT_AUDIO_SETTINGS;

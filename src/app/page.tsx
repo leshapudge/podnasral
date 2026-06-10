@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth/auth";
-import { MineseasonHome } from "@/components/landing/mineseason-home";
+import { PodnasralHome } from "@/components/landing/podnasral-home";
 
 export default async function Page() {
   const session = await auth();
 
   return (
-    <MineseasonHome
+    <PodnasralHome
       isAuthenticated={!!session?.user}
       user={
         session?.user

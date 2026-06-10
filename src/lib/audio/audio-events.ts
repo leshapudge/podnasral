@@ -22,6 +22,9 @@ const EVENT_SOUND_MAP: Partial<Record<AudioEventName, SoundId | ((p?: Record<str
   "easter:herobrine": "easter.herobrine",
   "easter:enderman": "easter.enderman",
   "easter:secretPage": "easter.secretPage",
+  "arcade:slotTick": "arcade.slotTick",
+  "arcade:slotReelStop": "arcade.slotStop",
+  "arcade:slotWin": "arcade.slotWin",
 };
 
 export function registerDefaultAudioHandlers() {

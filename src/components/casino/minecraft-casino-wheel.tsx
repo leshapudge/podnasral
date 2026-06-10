@@ -5,7 +5,6 @@ import { motion, useAnimation } from "framer-motion";
 import { LoaderPinwheel, Sparkles } from "lucide-react";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import { OsSectionTitle } from "@/components/landing/os/os-section-title";
-import { getItemTexture } from "@/lib/inventory/item-assets";
 import type { CatalogItemData, SessionData } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -113,10 +112,10 @@ export function MinecraftCasinoWheel({
       >
         <OsSectionTitle className="mb-1 justify-center gap-2">
           <Sparkles className="h-4 w-4 text-hypixel-gold" />
-          Колесо приколов
+          Слот наград
         </OsSectionTitle>
         <p className="mb-4 text-[10px] uppercase tracking-widest text-[#7a6a52]">
-          Добыча только с казино · как в NASSAL
+          Добыча только из слота наград после игры
         </p>
 
         <div className="relative mx-auto mb-4 max-w-[300px]">
@@ -130,7 +129,7 @@ export function MinecraftCasinoWheel({
                   style={{ width: SLOT_W }}
                 >
                   <McItemSlot
-                    src={getItemTexture(item.slug)}
+                    slug={item.slug}
                     alt={item.name}
                     size="md"
                     enchanted={item.rarity === "LEGENDARY" || item.rarity === "EPIC"}
@@ -200,12 +199,12 @@ export function MinecraftCasinoWheel({
 
       {session.loot.length > 0 && (
         <div>
-          <OsSectionTitle className="mb-3 justify-center">Добыча с колеса</OsSectionTitle>
+          <OsSectionTitle className="mb-3 justify-center">Добыча за забег</OsSectionTitle>
           <div className="flex flex-wrap justify-center gap-3">
             {session.loot.map((l, idx) => (
               <div key={`${l.slug}-${idx}`} className="text-center">
                 <McItemSlot
-                  src={getItemTexture(l.slug)}
+                  slug={l.slug}
                   alt={l.name}
                   size="md"
                   enchanted={l.rarity === "LEGENDARY" || l.rarity === "EPIC"}

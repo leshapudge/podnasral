@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { emitAudioEvent } from "@/lib/audio/event-bus";
 
 interface OsWindowControlsProps {
   onClose?: () => void;
@@ -8,12 +9,19 @@ interface OsWindowControlsProps {
 }
 
 export function OsWindowControls({ onClose, className }: OsWindowControlsProps) {
+  function handleClose() {
+    emitAudioEvent("ui:click");
+    emitAudioEvent("page:open", { pathname: "/" });
+    onClose?.();
+  }
+
   return (
     <div className={cn("flex shrink-0 gap-1", className)}>
       <button
         type="button"
         aria-label="Закрыть"
-        onClick={onClose}
+        data-silent
+        onClick={handleClose}
         className="mc-os-window-btn h-2.5 w-2.5 rounded-sm transition-transform hover:scale-110 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
         style={{ background: "rgba(255,85,85,0.85)" }}
       />

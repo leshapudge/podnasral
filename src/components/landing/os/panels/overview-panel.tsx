@@ -21,7 +21,7 @@ interface OverviewPanelProps {
 const quickLinks: { tab: AppTabSlug; label: string; texture: string }[] = [
   { tab: "boss", label: "Боссы", texture: MC_ASSETS.items.witherSkull },
   { tab: "inventory", label: "Инвентарь", texture: MC_ASSETS.items.shulkerBox },
-  { tab: "secrets", label: "Секреты", texture: MC_ASSETS.items.enderPearl },
+  { tab: "achievements", label: "Достижения", texture: MC_ASSETS.items.enderPearl },
 ];
 
 const statTextures: Record<string, string> = {

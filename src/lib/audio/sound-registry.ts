@@ -265,6 +265,41 @@ export const SOUND_REGISTRY: Record<SoundId, SoundDefinition> = {
     fallback: "ambientEnd",
     loop: true,
   },
+  "arcade.slotTick": {
+    id: "arcade.slotTick",
+    path: "/audio/arcade/reel-tick.ogg",
+    category: "ui",
+    volume: 0.26,
+    fallback: "slotTick",
+  },
+  "arcade.slotStop": {
+    id: "arcade.slotStop",
+    path: "/audio/arcade/reel-stop.ogg",
+    category: "ui",
+    volume: 0.42,
+    fallback: "slotReelStop",
+  },
+  "arcade.slotLand": {
+    id: "arcade.slotLand",
+    path: "/audio/arcade/slot-land.ogg",
+    category: "ui",
+    volume: 0.34,
+    fallback: "slotLand",
+  },
+  "arcade.slotRotten": {
+    id: "arcade.slotRotten",
+    path: "/audio/arcade/rotten-boom.ogg",
+    category: "ui",
+    volume: 0.62,
+    fallback: "creeperExplosion",
+  },
+  "arcade.slotWin": {
+    id: "arcade.slotWin",
+    path: "/audio/arcade/slot-win.ogg",
+    category: "ui",
+    volume: 0.5,
+    fallback: "slotWin",
+  },
 };
 
 export const RANDOM_AMBIENT_SOUNDS: SoundId[] = [

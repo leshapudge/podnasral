@@ -5,7 +5,7 @@ import type { OAuthProviderId } from "@/lib/auth/providers";
 
 export async function signInWithProvider(
   provider: OAuthProviderId,
-  callbackUrl = "/streamer",
+  callbackUrl = "/?tab=kazik",
 ) {
   await signIn(provider, { redirectTo: callbackUrl });
 }

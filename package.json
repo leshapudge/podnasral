@@ -1,5 +1,5 @@
 {
-  "name": "mineseason",
+  "name": "podnasral",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -7,16 +7,18 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "dev:fresh": "rm -rf .next && next dev",
+    "build": "npm run icons:sync && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "start:render": "prisma db push && npm run db:seed && next start",
+    "start:render": "prisma db push && npm run icons:sync && npm run db:seed && next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "npx tsx prisma/seed.ts",
+    "icons:sync": "node scripts/sync-item-icons.mjs",
     "audio:fetch": "node scripts/download-mc-sounds.mjs"
   },
   "dependencies": {

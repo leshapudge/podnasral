@@ -7,6 +7,8 @@ import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/scor
 import { rollDifficultyWithRerolls } from "./difficulty";
 import { getElapsedMs, getProgressPct } from "./timer";
 import { formatCasinoState } from "@/lib/casino/casino.service";
+import { getActiveModifiers } from "@/lib/casino/modifiers";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { completeSession } from "./complete.service";
 import { dropSession } from "./drop.service";
 
@@ -193,6 +195,16 @@ export async function acknowledgeSession(participantId: string) {
   });
   if (!participant) throw notFound("Participant");
 
+  if (participant.status === "COMPLETED" && participant.currentSessionId) {
+    const pending = await prisma.gameSession.findUnique({
+      where: { id: participant.currentSessionId },
+      select: { status: true, playerRating: true },
+    });
+    if (pending?.status === "COMPLETED" && pending.playerRating == null) {
+      throw badRequest("Submit a game review before continuing");
+    }
+  }
+
   if (participant.status === "CASINO") {
     const session = participant.currentSessionId
       ? await prisma.gameSession.findUnique({
@@ -229,6 +241,9 @@ export function formatSessionPublic(session: SessionWithRelations | (SessionWith
     completedAt: session.completedAt?.toISOString() ?? null,
     finalScore: session.finalScore,
     dropPenalty: session.dropPenalty,
+    playerRating: session.playerRating,
+    playerReview: session.playerReview,
+    needsReview: session.status === "COMPLETED" && session.playerRating == null,
     scoreBreakdown: session.scoreBreakdown,
     game: {
       title: session.catalogGame.title,
@@ -238,8 +253,9 @@ export function formatSessionPublic(session: SessionWithRelations | (SessionWith
       slug: l.itemDefinition.slug,
       name: l.itemDefinition.name,
       rarity: l.rarity,
-      iconUrl: l.itemDefinition.iconUrl,
+      iconUrl: resolveItemIcon(l.itemDefinition.slug, l.itemDefinition.iconUrl),
     })),
+    activeModifiers: getActiveModifiers(session),
     casino: formatCasinoState(session),
   };
 }

@@ -177,6 +177,22 @@ const generators: Record<ProceduralSoundId, (p: PlayCtx) => void> = {
     tone({ ...p, volume: p.volume * 0.06 }, 220, 2.5, "sine", 0.5);
     arpeggio({ ...p, volume: p.volume * 0.04 }, [110, 138, 165], 0.4, "triangle");
   },
+  slotTick: (p) => {
+    noiseBurst({ ...p, volume: p.volume * 0.1 }, 0.014, 2.5);
+    tone({ ...p, volume: p.volume * 0.3 }, 380, 0.016, "square", 0);
+    tone({ ...p, volume: p.volume * 0.18 }, 160, 0.022, "triangle", 0.001);
+  },
+  slotReelStop: (p) => {
+    noiseBurst({ ...p, volume: p.volume * 0.24 }, 0.022, 2.2);
+    tone({ ...p, volume: p.volume * 0.48 }, 220, 0.035, "triangle", 0.001);
+    tone({ ...p, volume: p.volume * 0.32 }, 72, 0.065, "sine", 0.004);
+  },
+  slotLand: (p) => {
+    tone({ ...p, volume: p.volume * 0.58 }, 520, 0.012, "square", 0);
+    tone({ ...p, volume: p.volume * 0.4 }, 260, 0.016, "triangle", 0.001);
+    noiseBurst({ ...p, volume: p.volume * 0.1 }, 0.008, 4);
+  },
+  slotWin: (p) => arpeggio({ ...p, volume: p.volume * 0.85 }, [523, 659, 784, 988], 0.1, "triangle"),
 };
 
 export function playProceduralSound(

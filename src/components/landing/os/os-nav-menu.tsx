@@ -16,13 +16,13 @@ interface OsNavMenuProps {
 }
 
 const TAB_LINKS: { tab: AppTabSlug; label: string }[] = [
+  { tab: "kazik", label: "Казик" },
   { tab: "profile", label: "Профиль" },
   { tab: "inventory", label: "Инвентарь" },
   { tab: "items", label: "Предметы" },
   { tab: "season", label: "Сезон" },
   { tab: "boss", label: "Босс" },
-  { tab: "feed", label: "Лента" },
-  { tab: "secrets", label: "Секреты" },
+  { tab: "achievements", label: "Достижения" },
 ];
 
 const ROUTE_LINKS = [
@@ -123,7 +123,7 @@ export function OsNavMenu({ isAuthenticated, userRole, onTabChange }: OsNavMenuP
             <>
               <div className="my-1 border-t border-[#1a1208]" />
               <Link
-                href="/login"
+                href="/login?callbackUrl=%2F%3Ftab%3Dkazik"
                 role="menuitem"
                 className="block px-3 py-2 font-display text-[10px] uppercase tracking-wide text-primary hover:bg-[#1a1208]"
                 onClick={() => setOpen(false)}

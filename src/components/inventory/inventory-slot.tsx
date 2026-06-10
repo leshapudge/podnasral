@@ -6,7 +6,7 @@ import type { InventoryStack, DragInventoryItem } from "@/lib/inventory/types";
 import { DND_TYPE_INVENTORY } from "@/lib/inventory/types";
 import { McTexture } from "@/components/landing/os/mc-texture";
 import { ItemTooltip } from "./item-tooltip";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { rarityConfig } from "@/lib/inventory/rarity";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +106,8 @@ export function InventorySlot({ index, stack, onMove, onSplit }: InventorySlotPr
             )}
           >
             <McTexture
-              src={getItemTexture(stack.templateId)}
+              slug={stack.templateId}
+              src={resolveItemIcon(stack.templateId, stack.icon)}
               alt={stack.name}
               size={28}
               className={cn("sm:h-8 sm:w-8", isDragging && "scale-90 opacity-80")}

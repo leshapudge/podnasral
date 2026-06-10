@@ -14,9 +14,11 @@ import { ProfilePanel } from "./panels/profile-panel";
 import { InventoryPanel } from "./panels/inventory-panel";
 import { SeasonPanel } from "./panels/season-panel";
 import { BossPanel } from "./panels/boss-panel";
-import { FeedPanel } from "./panels/feed-panel";
 import { SecretsPanel } from "./panels/secrets-panel";
+import { ArtifactSpawner } from "@/components/secrets/artifact-spawner";
 import { ItemsEncyclopediaPanel } from "./panels/items-encyclopedia-panel";
+import { ViewerArcadePanel } from "./panels/viewer-arcade-panel";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { OsWindowControls } from "./os-window-controls";
 
 export interface OsUser {
@@ -54,6 +56,8 @@ function Panel({
   onTabChange: (tab: AppTabSlug) => void;
 }) {
   switch (tab) {
+    case "kazik":
+      return <ViewerArcadePanel isAuthenticated={isAuthenticated} />;
     case "overview":
       return <StreamersHubPanel season={homeData.season} />;
     case "profile":
@@ -84,16 +88,10 @@ function Panel({
           season={homeData.season}
         />
       );
-    case "feed":
-      return (
-        <FeedPanel
-          feed={homeData.feed}
-          eventStats={homeData.eventStats}
-          season={homeData.season}
-        />
-      );
-    case "secrets":
+    case "achievements":
       return <SecretsPanel />;
+    default:
+      return <StreamersHubPanel season={homeData.season} />;
   }
 }
 
@@ -126,7 +124,7 @@ function OsShellInner({
   const monitor = (
     <div className={desktopMode ? "mc-os-monitor mc-os-monitor--desktop" : "mc-os-monitor"}>
           <div className="mc-os-bezel">
-            <span className="mc-os-bezel-title flex-1 text-center">MINESEASON</span>
+            <span className="mc-os-bezel-title flex-1 text-center">{EVENT_BRAND}</span>
             <OsWindowControls onClose={onWindowClose} />
           </div>
 
@@ -136,7 +134,8 @@ function OsShellInner({
             isAuthenticated={isAuthenticated}
             user={user}
           />
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            {desktopMode && <ArtifactSpawner />}
             <Panel
               tab={activeTab}
               isAuthenticated={isAuthenticated}
@@ -147,7 +146,7 @@ function OsShellInner({
               onTabChange={setTab}
             />
           </div>
-          <OsStatusBar season={homeData.season} onTabChange={setTab} />
+          <OsStatusBar season={homeData.season} />
     </div>
   );
 
@@ -168,7 +167,7 @@ export function OsShell(props: OsShellProps) {
     <Suspense
       fallback={
         <div className="mc-os-scene" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "#7a6a52" }}>
-          Загрузка MINESEASON...
+          Загрузка {EVENT_BRAND}...
         </div>
       }
     >

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Pickaxe } from "lucide-react";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { useSecretsOptional } from "./secret-context";
 
 interface SecretLogoLinkProps {
@@ -28,7 +29,7 @@ export function SecretLogoLink({
       </div>
       {showText && (
         <span className="font-display text-lg font-bold tracking-wider text-gradient-emerald">
-          MINESEASON
+          {EVENT_BRAND}
         </span>
       )}
     </Link>

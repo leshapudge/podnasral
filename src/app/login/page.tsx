@@ -3,9 +3,12 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { authConfigIssues, isAuthConfigured } from "@/lib/auth/env";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { LoginButtons } from "@/components/auth/login-buttons";
 import { OsSectionTitle } from "@/components/landing/os/os-section-title";
 import { McPageShell } from "@/components/landing/mc-page-shell";
+import { defaultLoginRedirect } from "@/lib/navigation/user-hub";
+import type { UserRole } from "@prisma/client";
 
 const errorMessages: Record<string, string> = {
   OAuthSignin: "Не удалось подключиться к Twitch. Проверьте OAuth Redirect URL в Twitch Console.",
@@ -27,7 +30,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
 
   if (session?.user) {
-    redirect(params.callbackUrl ?? "/streamer");
+    redirect(
+      params.callbackUrl ??
+        defaultLoginRedirect(session.user.role as UserRole | undefined),
+    );
   }
 
   const authReady = isAuthConfigured();
@@ -39,7 +45,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       : null;
 
   return (
-    <McPageShell title="Вход · MINESEASON" closeHref="/">
+    <McPageShell title={`Вход · ${EVENT_BRAND}`} closeHref="/">
       <div className="mx-auto max-w-md py-6 sm:py-10">
         <div
           className="overflow-hidden rounded-lg border-2 border-[#1a1208] p-6 sm:p-8"
@@ -57,9 +63,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               className="mc-pixel-image mb-4 drop-shadow-[4px_6px_0_rgba(0,0,0,0.45)]"
               priority
             />
-            <OsSectionTitle className="justify-center">Вход стримера</OsSectionTitle>
+            <OsSectionTitle className="justify-center">Вход через Twitch</OsSectionTitle>
             <p className="mt-2 text-sm text-[#7a6a52]">
-              Авторизация через Twitch · профиль и аватар подтянутся автоматически
+              Зрители — в аркаду с казино и лидербордом. Стримеры сезона — в панель игрока.
             </p>
           </div>
 
@@ -75,12 +81,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           )}
 
           <LoginButtons
-            callbackUrl={params.callbackUrl ?? "/streamer"}
+            callbackUrl={params.callbackUrl ?? "/?tab=kazik"}
             disabled={!authReady}
           />
 
           <p className="mt-5 text-center text-[11px] leading-relaxed text-[#6a5840]">
-            Участники сезона: kazanfarik, blindzonexgod, kwwwinn, kyotowave, xu3t
+            Аркада доступна всем до старта сезона · стримеры: kazanfarik, blindzonexgod, kwwwinn,
+            kyotowave, xu3t
           </p>
         </div>
 

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Award, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { rarityStyles } from "@/lib/profile/mock-data";
+import { rarityStyles } from "@/lib/profile/profile-types";
 import type { ProfileAchievement } from "@/lib/profile/profile-data.service";
 
 interface AchievementsTabProps {

@@ -5,7 +5,7 @@ import { BookOpen } from "lucide-react";
 import { OsPanelFrame } from "../os-panel-frame";
 import { OsSectionTitle } from "../os-section-title";
 import { McItemSlot } from "../mc-item-slot";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import {
   describeItemEffects,
   getItemFlavorText,
@@ -58,7 +58,7 @@ export function ItemsEncyclopediaPanel() {
     <OsPanelFrame>
       <OsSectionTitle>Справочник предметов</OsSectionTitle>
       <p className="mb-4 text-center text-xs text-[#7a6a52] sm:text-left">
-        Все предметы сезона, их редкость и эффекты. Добыча — с Колеса приколов после игры,
+        Все предметы сезона, их редкость и эффекты. Добыча — из слота наград после игры,
         модификаторы вешаются на аукцион (макс. 2 за раз).
       </p>
 
@@ -106,7 +106,8 @@ export function ItemsEncyclopediaPanel() {
                   )}
                 >
                   <McItemSlot
-                    src={getItemTexture(item.slug)}
+                    slug={item.slug}
+                    src={resolveItemIcon(item.slug, item.iconUrl)}
                     alt={item.name}
                     size="sm"
                     enchanted={r === "LEGENDARY" || r === "EPIC"}
@@ -141,7 +142,8 @@ export function ItemsEncyclopediaPanel() {
             >
               <div className="flex flex-col items-center text-center">
                 <McItemSlot
-                  src={getItemTexture(selected.slug)}
+                  slug={selected.slug}
+                  src={resolveItemIcon(selected.slug, selected.iconUrl)}
                   alt={selected.name}
                   size="lg"
                   enchanted={
@@ -206,7 +208,7 @@ export function ItemsEncyclopediaPanel() {
 
                 {selected.kind === "MATERIAL" && (
                   <p className="rounded border border-[#3d3024] bg-[#1a1208]/50 px-2 py-1.5 text-[10px] text-[#7a6a52]">
-                    Выпадает с Колеса приколов после игры
+                    Выпадает из слота наград после игры
                   </p>
                 )}
                 {selected.kind === "MODIFIER" && (

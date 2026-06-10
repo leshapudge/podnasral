@@ -17,7 +17,7 @@ const EFFECT_LABELS: Record<string, (value: number | boolean) => string> = {
   penaltyReduction: (v) =>
     typeof v === "number" ? `−${Math.round(v * 100)}% штрафа при дропе` : "",
   extraLootRolls: (v) =>
-    typeof v === "number" && v > 0 ? `+${v} доп. ролла лута после игры` : "",
+    typeof v === "number" && v > 0 ? `+${v} спин слота наград после игры` : "",
   auctionPoolShortBias: (v) =>
     typeof v === "number" && v > 1 ? "Аукцион чаще даёт короткие игры (≤15 ч)" : "",
   auctionPoolLongBias: (v) =>
@@ -53,7 +53,7 @@ const EFFECT_LABELS: Record<string, (value: number | boolean) => string> = {
   dropRefundMaterial: (v) =>
     v === true ? "При дропе: осколок железа в инвентарь" : "",
   pinataLootBonus: (v) =>
-    typeof v === "number" && v > 0 ? `+${v} лут при победе (пиньята)` : "",
+    typeof v === "number" && v > 0 ? `+${v} спин слота наград при победе` : "",
   flatScoreBonus: (v) =>
     typeof v === "number" && v > 0 ? `+${v} очков за прохождение` : "",
   flatScorePenalty: (v) =>
@@ -70,7 +70,7 @@ const EFFECT_LABELS: Record<string, (value: number | boolean) => string> = {
     typeof v === "number" && v > 0 ? `+${v} лут на коротких играх` : "",
   dropPenaltyMultiplier: (v) =>
     typeof v === "number" && v > 0 && v < 1
-      ? `Штраф при дропе ×${v} (как Парашют)`
+      ? `Штраф при дропе ×${v}`
       : typeof v === "number" && v > 1
         ? `Штраф при дропе ×${v}`
         : "",

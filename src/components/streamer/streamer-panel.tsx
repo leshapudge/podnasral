@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
+  Coins,
   Gamepad2,
   Hammer,
   Package,
@@ -18,23 +20,28 @@ import { McPageShell } from "@/components/landing/mc-page-shell";
 import { McAvatar } from "@/components/landing/os/mc-avatar";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import { OsSectionTitle } from "@/components/landing/os/os-section-title";
+import { ViewerArcadePanel } from "@/components/landing/os/panels/viewer-arcade-panel";
 import { MinecraftInventory } from "@/components/inventory/minecraft-inventory";
-import { MinecraftCasinoWheel } from "@/components/casino/minecraft-casino-wheel";
+import { ActiveModifiersStrip } from "@/components/casino/active-modifiers-strip";
+import { StreamerCasinoModal } from "@/components/casino/streamer-casino-modal";
+import { GameReviewForm } from "@/components/streamer/game-review-form";
 import { MinecraftCraftingTable } from "@/components/craft/minecraft-crafting-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { inventoryGridFromMe } from "@/lib/inventory/grid.adapter";
-import { getItemTexture } from "@/lib/inventory/item-assets";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
+import { describeItemEffects } from "@/lib/inventory/item-effects";
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import {
   api,
   ApiClientError,
-  type CatalogItemData,
   type CraftRecipeData,
   type MeData,
 } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-type StreamerTab = "game" | "inventory" | "craft";
+type StreamerTab = "game" | "inventory" | "craft" | "kazik";
+
+const MAX_MODIFIERS_PER_AUCTION = 2;
 
 const STATUS_LABELS: Record<string, string> = {
   IDLE: "Между играми",
@@ -44,7 +51,7 @@ const STATUS_LABELS: Record<string, string> = {
   PAUSED: "Пауза",
   COMPLETED: "Игра пройдена",
   DROPPED: "Дроп",
-  CASINO: "Колесо приколов",
+  CASINO: "Слот наград",
 };
 
 function formatTime(ms: number) {
@@ -74,7 +81,6 @@ export function StreamerPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recipes, setRecipes] = useState<CraftRecipeData[]>([]);
-  const [catalog, setCatalog] = useState<CatalogItemData[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -95,10 +101,22 @@ export function StreamerPanel() {
 
   useEffect(() => {
     api.getRecipes().then(setRecipes).catch(() => setRecipes([]));
-    api.getItemCatalog().then(setCatalog).catch(() => setCatalog([]));
   }, []);
 
   const counts = useMemo(() => (me ? inventoryCounts(me) : {}), [me]);
+
+  const prepModifiers = useMemo(() => {
+    if (!me) return [];
+    return selectedModifiers
+      .map((id) => me.inventory.find((i) => i.id === id))
+      .filter(Boolean)
+      .map((m) => ({
+        slug: m!.slug,
+        name: m!.name,
+        iconUrl: resolveItemIcon(m!.slug, m!.iconUrl),
+        effects: describeItemEffects(m!.effects),
+      }));
+  }, [me, selectedModifiers]);
 
   async function runAction(fn: () => Promise<unknown>) {
     setLoading(true);
@@ -156,6 +174,7 @@ export function StreamerPanel() {
     { id: "game", label: "Игра", icon: Gamepad2 },
     { id: "inventory", label: "Инвентарь", icon: Package },
     { id: "craft", label: "Верстак", icon: Hammer },
+    { id: "kazik", label: "Казик", icon: Coins },
   ];
 
   return (
@@ -186,6 +205,13 @@ export function StreamerPanel() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/?tab=kazik"
+                className="mc-os-btn hidden px-3 py-1.5 text-[10px] uppercase sm:inline-flex"
+                title="Открыть казик на главной"
+              >
+                Казик OS
+              </Link>
               <div className="rounded border border-hypixel-gold/30 bg-hypixel-gold/10 px-4 py-2 text-center">
                 <Trophy className="mx-auto mb-0.5 h-4 w-4 text-hypixel-gold" />
                 <p className="font-display text-lg font-bold text-hypixel-gold">
@@ -260,8 +286,15 @@ export function StreamerPanel() {
               <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
                 <OsSectionTitle>Подготовка аукциона</OsSectionTitle>
                 <p className="mb-3 text-xs text-[#7a6a52]">
-                  Выберите модификаторы (необязательно), затем запустите аукцион
+                  Выберите до {MAX_MODIFIERS_PER_AUCTION} модификаторов до старта, затем запустите
+                  аукцион
                 </p>
+                <ActiveModifiersStrip
+                  modifiers={prepModifiers}
+                  maxCount={MAX_MODIFIERS_PER_AUCTION}
+                  className="mb-4"
+                  hint="Списываются при старте аукциона"
+                />
                 <div className="mb-4 flex flex-wrap gap-2">
                   {modifiers
                     .filter((m) => !selectedModifiers.includes(m.id))
@@ -269,8 +302,10 @@ export function StreamerPanel() {
                       <button
                         key={m.id}
                         type="button"
-                        className="flex items-center gap-2 rounded border border-[#2a2118] bg-[#1a1208]/60 px-3 py-2 text-left transition hover:border-primary/40"
-                        disabled={loading}
+                        className="flex items-center gap-2 rounded border border-[#2a2118] bg-[#1a1208]/60 px-3 py-2 text-left transition hover:border-primary/40 disabled:opacity-40"
+                        disabled={
+                          loading || selectedModifiers.length >= MAX_MODIFIERS_PER_AUCTION
+                        }
                         onClick={() =>
                           runAction(async () => {
                             await api.applyModifier(auctionId, m.id);
@@ -279,7 +314,8 @@ export function StreamerPanel() {
                         }
                       >
                         <McItemSlot
-                          src={getItemTexture(m.slug)}
+                          slug={m.slug}
+                          src={resolveItemIcon(m.slug, m.iconUrl)}
                           alt={m.name}
                           size="sm"
                         />
@@ -336,6 +372,10 @@ export function StreamerPanel() {
                 </div>
 
                 <div className="space-y-4 p-4 sm:p-5">
+                  {session.activeModifiers.length > 0 && (
+                    <ActiveModifiersStrip modifiers={session.activeModifiers} compact />
+                  )}
+
                   {session.status === "AWAITING_DIFFICULTY" && (
                     <div className="space-y-3">
                       {!session.difficulty ? (
@@ -428,44 +468,40 @@ export function StreamerPanel() {
                     </div>
                   )}
 
+                  {status === "COMPLETED" && session?.needsReview && (
+                    <GameReviewForm
+                      gameTitle={session.game.title}
+                      finalScore={session.finalScore}
+                      loading={loading}
+                      onSubmit={(rating, review) =>
+                        runAction(() => api.submitSessionReview(session.id, rating, review))
+                      }
+                    />
+                  )}
+
                   {status === "CASINO" && (
-                    <MinecraftCasinoWheel
+                    <StreamerCasinoModal
                       session={session}
-                      catalog={catalog}
                       loading={loading}
                       showScore={{
                         points: session.finalScore,
                         penalty: session.dropPenalty,
                       }}
-                      onSpin={async () => {
-                        const result = await api.spinCasino(session.id);
+                      onSpinComplete={async () => {
                         await refresh();
-                        return result.drop;
                       }}
                       onAcknowledge={() => runAction(() => api.acknowledgeSession())}
                     />
                   )}
 
-                  {(status === "COMPLETED" || status === "DROPPED") && (
+                  {status === "DROPPED" && (
                     <div className="space-y-4 text-center">
-                      {session.finalScore != null && session.finalScore > 0 && (
-                        <p className="font-display text-2xl text-hypixel-gold">
-                          +{session.finalScore} очков
-                        </p>
-                      )}
                       {session.dropPenalty != null && session.dropPenalty > 0 && (
                         <p className="font-display text-xl text-mc-redstone">
                           −{session.dropPenalty} штраф
                         </p>
                       )}
-                      <button
-                        type="button"
-                        className="mc-os-btn px-6 py-2 text-xs"
-                        disabled={loading}
-                        onClick={() => runAction(() => api.acknowledgeSession())}
-                      >
-                        Продолжить
-                      </button>
+                      <p className="text-sm text-[#7a6a52]">Дроп — открывается казино наград</p>
                     </div>
                   )}
                 </div>
@@ -502,6 +538,16 @@ export function StreamerPanel() {
                 await runAction(() => api.craft(recipeId));
               }}
             />
+          </motion.div>
+        )}
+
+        {tab === "kazik" && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <OsSectionTitle className="mb-3 justify-center">Игра на монеты</OsSectionTitle>
+            <p className="mb-4 text-center text-xs text-[#7a6a52]">
+              Липовый казик как у зрителей — не связан с наградами за забег
+            </p>
+            <ViewerArcadePanel isAuthenticated embedded />
           </motion.div>
         )}
       </div>

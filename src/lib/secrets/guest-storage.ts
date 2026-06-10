@@ -1,6 +1,8 @@
 import type { GuestSecretState } from "./types";
 
-const STORAGE_KEY = "mineseason-secrets-v1";
+import { EVENT_BRAND_LOWER } from "@/lib/event/event-brand";
+
+const STORAGE_KEY = `${EVENT_BRAND_LOWER}-secrets-v1`;
 
 export const DEFAULT_GUEST_STATE: GuestSecretState = {
   achievements: [],

@@ -10,7 +10,6 @@ import {
 } from "@/lib/scoring/score-calculator";
 import { tryRatSteal } from "@/lib/inventory/rat-steal.service";
 import { getElapsedMs } from "./timer";
-import { grantCasinoSpins } from "@/lib/casino/casino.service";
 import { dealBossDamage } from "@/lib/boss/boss.service";
 import { logActivity } from "@/lib/activity/activity.service";
 import { toJson } from "@/lib/utils/json";
@@ -75,13 +74,12 @@ export async function completeSession(
       data: {
         totalPoints: { increment: breakdown.finalScore },
         gameProgressPct: 100,
+        status: "COMPLETED",
       },
     });
 
     return updated;
   });
-
-  const casinoSpins = await grantCasinoSpins(result);
 
   const combined = combineModifierEffects(modifiers);
   let ratStealResult: Awaited<ReturnType<typeof tryRatSteal>> | null = null;
@@ -111,9 +109,8 @@ export async function completeSession(
     payload: {
       gameTitle,
       score: breakdown.finalScore,
-      casinoSpins,
     },
   });
 
-  return { session: result, breakdown, casinoSpins, ratSteal: ratStealResult };
+  return { session: result, breakdown, ratSteal: ratStealResult };
 }

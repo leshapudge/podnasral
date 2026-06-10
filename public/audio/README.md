@@ -1,4 +1,4 @@
-# MINESEASON Audio Assets
+# PODNASRAL Audio Assets
 
 Ванильные звуки Minecraft (1.21.4), скачанные из `assets.mcasset.cloud`.
 

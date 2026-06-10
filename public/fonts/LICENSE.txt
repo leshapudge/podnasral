@@ -1,0 +1,6 @@
+Monocraft font
+Copyright (c) 2021-2025 Idrees Hassan
+https://github.com/IdreesInc/Monocraft
+
+Licensed under the SIL Open Font License, Version 1.1.
+This font is not affiliated with Mojang or Minecraft.

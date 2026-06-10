@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRight, Play, Trophy, Users, Zap } from "lucide-react";
+import { EVENT_BRAND, EVENT_TAGLINE } from "@/lib/event/event-brand";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -51,7 +52,7 @@ export function Hero({ isAuthenticated }: HeroProps) {
         >
           <Badge variant="gold" className="mb-6 px-4 py-1.5 text-sm">
             <Zap className="mr-1.5 h-3.5 w-3.5" />
-            Season I — Emerald Depths
+            {EVENT_BRAND} · Season I
           </Badge>
         </motion.div>
 
@@ -61,8 +62,8 @@ export function Hero({ isAuthenticated }: HeroProps) {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="font-display text-5xl font-bold leading-tight tracking-wider sm:text-7xl lg:text-8xl"
         >
-          <span className="text-gradient-emerald">MINE</span>
-          <span className="text-gradient-gold">SEASON</span>
+          <span className="text-gradient-emerald">POD</span>
+          <span className="text-gradient-gold">NASRAL</span>
         </motion.h1>
 
         <motion.p
@@ -71,8 +72,7 @@ export function Hero({ isAuthenticated }: HeroProps) {
           transition={{ duration: 0.6, delay: 0.25 }}
           className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl"
         >
-          Стримерский игровой ивент в стиле Minecraft. Играй, крафти, побеждай боссов
-          и поднимайся в рейтинге силы.
+          {EVENT_TAGLINE}
         </motion.p>
 
         <motion.div

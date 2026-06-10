@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity/activity.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
 import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/score-calculator";
 import { toJson } from "@/lib/utils/json";
+import { buildModifiersSnapshot } from "@/lib/casino/modifiers";
 import {
   applyModifierWeights,
   buildEliminationOrder,
@@ -210,6 +211,7 @@ export async function startAuction(auctionId: string, participantId: string) {
   }
 
   const hltbHours = winnerGame.catalogGame.mainStoryHours ?? 10;
+  const modifiersSnapshot = buildModifiersSnapshot(auction.modifierUses);
 
   const session = await prisma.$transaction(async (tx) => {
     await tx.auctionRun.update({
@@ -224,6 +226,7 @@ export async function startAuction(auctionId: string, participantId: string) {
         auctionRunId: auctionId,
         hltbMainHours: hltbHours,
         modifiersJson: toJson(modifiers),
+        modifiersSnapshotJson: toJson(modifiersSnapshot),
         status: "AWAITING_DIFFICULTY",
       },
       include: { catalogGame: true },

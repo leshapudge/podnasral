@@ -7,7 +7,9 @@ import { getCompetitionContext } from "@/lib/balance/catch-up";
 import { rollLoot } from "@/lib/loot/loot.service";
 import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 import { logActivity } from "@/lib/activity/activity.service";
+import { resolveItemIcon } from "@/lib/inventory/item-assets";
 import { calculateCasinoSpins } from "./spin-count";
+import { buildLootSlotReels, getActiveModifiers } from "./modifiers";
 
 export async function grantCasinoSpins(
   session: GameSession,
@@ -19,7 +21,6 @@ export async function grantCasinoSpins(
   const spins = calculateCasinoSpins({
     modifiers,
     hltbMainHours: session.hltbMainHours,
-    seed: `${session.id}-${opts.isDrop ? "drop" : "complete"}`,
     competition,
     isDrop: opts.isDrop,
   });
@@ -30,6 +31,7 @@ export async function grantCasinoSpins(
       data: {
         casinoSpinsTotal: spins,
         casinoSpinsUsed: 0,
+        casinoManualBonusApplied: false,
       },
     }),
     prisma.participant.update({
@@ -39,6 +41,47 @@ export async function grantCasinoSpins(
   ]);
 
   return spins;
+}
+
+export async function addCasinoBonusSpins(
+  sessionId: string,
+  participantId: string,
+  bonusSpins: number,
+) {
+  const session = await prisma.gameSession.findUnique({
+    where: { id: sessionId },
+  });
+  if (!session) throw badRequest("Session not found");
+  if (session.participantId !== participantId) throw badRequest("Session not found");
+
+  const participant = await prisma.participant.findUnique({
+    where: { id: participantId },
+  });
+  if (participant?.status !== "CASINO") {
+    throw conflict("Casino not active");
+  }
+
+  if (session.casinoManualBonusApplied) {
+    throw badRequest("Manual bonus spins already applied");
+  }
+
+  const event = await getActiveEvent();
+  const config = parseEventConfig(event.config);
+  const count = Math.floor(bonusSpins);
+  if (count <= 0) throw badRequest("Bonus spins must be positive");
+  if (count > config.maxManualCasinoBonusSpins) {
+    throw badRequest(`Max ${config.maxManualCasinoBonusSpins} bonus spins`);
+  }
+
+  const updated = await prisma.gameSession.update({
+    where: { id: sessionId },
+    data: {
+      casinoSpinsTotal: { increment: count },
+      casinoManualBonusApplied: true,
+    },
+  });
+
+  return formatCasinoState(updated, config.maxManualCasinoBonusSpins);
 }
 
 export async function spinCasinoWheel(sessionId: string, participantId: string) {
@@ -71,6 +114,7 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   const modifiers = (session.modifiersJson as ModifierEffects[]) ?? [];
   const competition = await getCompetitionContext(participantId, event.id);
   const spinIndex = session.casinoSpinsUsed;
+  const activeModifiers = getActiveModifiers(session);
 
   const [drops] = await prisma.$transaction(async (tx) => {
     await tx.gameSession.update({
@@ -97,6 +141,13 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   const drop = drops[0];
   if (!drop) throw badRequest("Loot roll failed");
 
+  const dropPayload = {
+    slug: drop.itemDefinition.slug,
+    name: drop.itemDefinition.name,
+    rarity: drop.rarity,
+    iconUrl: resolveItemIcon(drop.itemDefinition.slug, drop.itemDefinition.iconUrl),
+  };
+
   await logActivity({
     eventId: event.id,
     type: "LOOT",
@@ -114,18 +165,19 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   });
 
   return {
-    drop: {
-      slug: drop.itemDefinition.slug,
-      name: drop.itemDefinition.name,
-      rarity: drop.rarity,
-      iconUrl: drop.itemDefinition.iconUrl,
-    },
-    casino: formatCasinoState(updated!),
+    drop: dropPayload,
+    reels: buildLootSlotReels(dropPayload),
+    activeModifiers,
+    casino: formatCasinoState(updated!, config.maxManualCasinoBonusSpins),
   };
 }
 
 export function formatCasinoState(
-  session: Pick<GameSession, "casinoSpinsTotal" | "casinoSpinsUsed">,
+  session: Pick<
+    GameSession,
+    "casinoSpinsTotal" | "casinoSpinsUsed" | "casinoManualBonusApplied"
+  >,
+  maxManualBonusSpins = 10,
 ) {
   const remaining = Math.max(0, session.casinoSpinsTotal - session.casinoSpinsUsed);
   return {
@@ -133,5 +185,7 @@ export function formatCasinoState(
     spinsUsed: session.casinoSpinsUsed,
     spinsRemaining: remaining,
     finished: remaining <= 0 && session.casinoSpinsTotal > 0,
+    manualBonusApplied: session.casinoManualBonusApplied,
+    maxManualBonusSpins,
   };
 }

@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { authorizedParticipantsWhere } from "@/lib/participants/authorized-streamer";
 import { getActiveEventOrNull } from "@/lib/event/event.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
 
@@ -7,7 +8,7 @@ export async function syncTwitchLiveStatus() {
   if (!event) return [];
 
   const participants = await prisma.participant.findMany({
-    where: { eventId: event.id },
+    where: authorizedParticipantsWhere(event.id),
     include: { user: { select: { twitchLogin: true } } },
   });
 

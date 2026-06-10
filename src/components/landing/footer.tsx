@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { EVENT_BRAND, EVENT_TAGLINE } from "@/lib/event/event-brand";
 import { motion } from "framer-motion";
 import { Code2, Pickaxe, Tv } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -43,12 +44,11 @@ export function Footer() {
                 <Pickaxe className="h-5 w-5 text-primary" />
               </div>
               <span className="font-display text-lg font-bold tracking-wider text-gradient-emerald">
-                MINESEASON
+                {EVENT_BRAND}
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm text-muted-foreground leading-relaxed">
-              Стримерский игровой ивент в стиле Minecraft. Создан для стримеров
-              и их комьюнити. Вдохновлено Hypixel и лучшими игровыми платформами.
+              {EVENT_TAGLINE}
             </p>
             <div className="mt-6 flex gap-3">
               <a
@@ -99,7 +99,7 @@ export function Footer() {
 
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} MINESEASON. Not affiliated with Mojang or Microsoft.
+            © {new Date().getFullYear()} {EVENT_BRAND}. Not affiliated with Mojang or Microsoft.
           </p>
           <p className="text-xs text-muted-foreground">
             Made with ⛏️ for the streaming community

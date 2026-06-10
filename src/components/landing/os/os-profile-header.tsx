@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Crown, Shield, Zap } from "lucide-react";
 import { McAvatar } from "./mc-avatar";
 import { Progress } from "@/components/ui/progress";
-import { classLabels } from "@/lib/profile/mock-data";
+import { classLabels } from "@/lib/profile/profile-types";
 import type { ProfileSummary } from "@/lib/profile/profile-data.service";
 import { formatNumber } from "@/lib/utils";
 

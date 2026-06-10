@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { EVENT_BRAND, EVENT_BRAND_OS } from "@/lib/event/event-brand";
 import { cn } from "@/lib/utils";
 
 interface OsDesktopTaskbarProps {
@@ -17,7 +18,7 @@ type StartMenuItem =
 
 function buildStartItems(isAuthenticated: boolean): StartMenuItem[] {
   const items: StartMenuItem[] = [
-    { type: "action", label: "MINESEASON", sub: "Открыть главное окно" },
+    { type: "action", label: EVENT_BRAND, sub: "Открыть главное окно" },
   ];
   if (!isAuthenticated) {
     items.push({ type: "link", label: "Войти", href: "/login", sub: "Twitch OAuth" });
@@ -84,7 +85,7 @@ export function OsDesktopTaskbar({
 
         {menuOpen && (
           <div role="menu" className="mc-os-start-menu">
-            <div className="mc-os-start-menu-header">MINESEASON OS</div>
+            <div className="mc-os-start-menu-header">{EVENT_BRAND_OS}</div>
             {startItems.map((item) =>
               item.type === "action" ? (
                 <button

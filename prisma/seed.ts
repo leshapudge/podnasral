@@ -3,6 +3,7 @@ import {
   BALANCE_ITEM_CATALOG,
   BALANCE_RECIPES,
 } from "../src/lib/balance/item-catalog";
+import { getItemTexture } from "../src/lib/inventory/item-assets";
 import { syncBossHpForEvent } from "../src/lib/boss/boss.service";
 import {
   EVENT_DURATION_DAYS,
@@ -10,6 +11,7 @@ import {
   EVENT_STREAMERS,
 } from "../src/lib/event/event-roster";
 import { defaultEventConfigJson } from "../src/lib/event/config";
+import { EVENT_SEED_NAME } from "../src/lib/event/event-brand";
 
 const prisma = new PrismaClient();
 
@@ -22,14 +24,14 @@ async function main() {
     where: { id: "seed-event-1" },
     create: {
       id: "seed-event-1",
-      name: "MINESEASON 2026",
+      name: EVENT_SEED_NAME,
       startsAt,
       endsAt,
       status,
       config: defaultEventConfigJson(),
     },
     update: {
-      name: "MINESEASON 2026",
+      name: EVENT_SEED_NAME,
       startsAt,
       endsAt,
       status,
@@ -47,6 +49,7 @@ async function main() {
         rarity: item.rarity,
         kind: item.kind,
         effectsJson: item.effectsJson,
+        iconUrl: getItemTexture(item.slug),
       },
       update: {
         name: item.name,
@@ -54,6 +57,7 @@ async function main() {
         rarity: item.rarity,
         kind: item.kind,
         effectsJson: item.effectsJson,
+        iconUrl: getItemTexture(item.slug),
       },
     });
   }
@@ -142,61 +146,37 @@ async function main() {
   }
 
   const rosterLogins = new Set(EVENT_STREAMERS.map((s) => s.twitchLogin));
+  const rosterTwitchIds = EVENT_STREAMERS.map((s) => s.twitchId);
 
-  for (const s of EVENT_STREAMERS) {
-    const role = s.role ?? "STREAMER";
+  // Стримеры попадают в БД только после входа через Twitch — seed не создаёт User/Participant.
 
-    const user = await prisma.user.upsert({
-      where: { twitchId: s.twitchId },
-      create: {
-        twitchId: s.twitchId,
-        twitchLogin: s.twitchLogin,
-        name: s.displayName,
-        role,
-        image: s.image,
-      },
-      update: {
-        twitchLogin: s.twitchLogin,
-        name: s.displayName,
-        role,
-        image: s.image,
-      },
-    });
-
-    await prisma.participant.upsert({
-      where: { userId: user.id },
-      create: {
-        eventId: event.id,
-        userId: user.id,
-        displayOrder: s.displayOrder,
-        totalPoints: 0,
-        status: "IDLE",
-        isLive: false,
-        currentGameTitle: null,
-        gameProgressPct: null,
-        currentSessionId: null,
-      },
-      update: {
-        displayOrder: s.displayOrder,
-        totalPoints: 0,
-        status: "IDLE",
-        isLive: false,
-        currentGameTitle: null,
-        gameProgressPct: null,
-        currentSessionId: null,
-      },
-    });
+  const unauthParticipants = await prisma.participant.findMany({
+    where: {
+      user: { NOT: { accounts: { some: { provider: "twitch" } } } },
+    },
+    select: { id: true },
+  });
+  for (const p of unauthParticipants) {
+    await prisma.inventoryItem.deleteMany({ where: { participantId: p.id } });
+    await prisma.participant.delete({ where: { id: p.id } });
   }
 
-  // Удаляем старых demo-участников (demo-* twitch id)
+  // Удаляем seed-заглушки, demo и KarmikKoala — только без OAuth
   const staleUsers = await prisma.user.findMany({
     where: {
+      accounts: { none: { provider: "twitch" } },
       OR: [
         { twitchId: { startsWith: "demo-" } },
+        { twitchLogin: { equals: "karmikkoala", mode: "insensitive" } },
+        { name: { equals: "KarmikKoala", mode: "insensitive" } },
+        { twitchId: { in: rosterTwitchIds } },
         {
           twitchLogin: { notIn: [...rosterLogins] },
           role: { in: ["STREAMER", "ADMIN"] },
-          participant: { isNot: null },
+        },
+        {
+          twitchLogin: { in: [...rosterLogins] },
+          role: { in: ["STREAMER", "ADMIN"] },
         },
       ],
     },
@@ -208,15 +188,39 @@ async function main() {
       await prisma.inventoryItem.deleteMany({ where: { participantId: u.participant.id } });
       await prisma.participant.delete({ where: { id: u.participant.id } });
     }
-    if (u.twitchId?.startsWith("demo-")) {
-      await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
-    }
+    await prisma.account.deleteMany({ where: { userId: u.id } });
+    await prisma.session.deleteMany({ where: { userId: u.id } });
+    await prisma.user.delete({ where: { id: u.id } }).catch(() => {});
   }
 
   await prisma.activityLog.deleteMany({ where: { eventId: event.id } });
 
   const balanceConfig = defaultEventConfigJson();
   await syncBossHpForEvent(event.id, balanceConfig);
+
+  await prisma.user.updateMany({
+    where: { accounts: { none: { provider: "twitch" } } },
+    data: { arcadeCoins: 0, arcadeDiamonds: 0, arcadeNetWorth: 0 },
+  });
+
+  const arcadeUsers = await prisma.user.findMany({
+    where: { accounts: { some: { provider: "twitch" } } },
+    select: { id: true, arcadeCoins: true, arcadeDiamonds: true, arcadeNetWorth: true },
+  });
+  for (const u of arcadeUsers) {
+    const net = u.arcadeCoins + u.arcadeDiamonds * 50;
+    if (u.arcadeNetWorth !== net) {
+      await prisma.user.update({
+        where: { id: u.id },
+        data: { arcadeNetWorth: net },
+      });
+    }
+  }
+
+  const catalogSlugs = BALANCE_ITEM_CATALOG.map((i) => i.slug);
+  await prisma.itemDefinition.deleteMany({
+    where: { slug: { notIn: catalogSlugs } },
+  });
 
   console.log(
     `Seed complete: ${event.name} (${status}) — starts ${startsAt.toISOString()} — ${EVENT_STREAMERS.length} streamers`,

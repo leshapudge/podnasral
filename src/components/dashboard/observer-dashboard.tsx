@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { StreamerCard, type StreamerCardData } from "./streamer-card";
 import { BossPanel, type BossData } from "./boss-panel";
 import { FeedPanel, type FeedItem } from "./feed-panel";
@@ -49,7 +50,7 @@ export function ObserverDashboard() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              ⛏ {event?.name ?? "MINESEASON"}
+              ⛏ {event?.name ?? EVENT_BRAND}
             </h1>
             {event && (
               <p className="text-sm text-gray-400">

@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MC_ASSETS } from "@/lib/landing/assets";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getItemIconFallbackChain,
+  getItemTexture,
+  ITEM_ICON_UNKNOWN,
+} from "@/lib/inventory/item-assets";
 import { cn } from "@/lib/utils";
 
 interface McItemSlotProps {
-  src: string;
+  slug?: string;
+  src?: string;
   alt: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   active?: boolean;
   enchanted?: boolean;
   className?: string;
@@ -17,11 +22,11 @@ const sizes = {
   sm: { box: "h-10 w-10", img: 24 },
   md: { box: "h-[52px] w-[52px]", img: 36 },
   lg: { box: "h-[72px] w-[72px]", img: 48 },
+  xl: { box: "h-[88px] w-[88px]", img: 64 },
 };
 
-const FALLBACK = MC_ASSETS.items.enderPearl;
-
 export function McItemSlot({
+  slug,
   src,
   alt,
   size = "md",
@@ -30,11 +35,18 @@ export function McItemSlot({
   className,
 }: McItemSlotProps) {
   const s = sizes[size];
-  const [imgSrc, setImgSrc] = useState(src);
+  const primary = slug ? getItemTexture(slug) : (src ?? ITEM_ICON_UNKNOWN);
+  const fallbackChain = useMemo(
+    () => (slug ? getItemIconFallbackChain(slug) : [primary, ITEM_ICON_UNKNOWN]),
+    [slug, primary],
+  );
+  const [imgSrc, setImgSrc] = useState(primary);
+  const fallbackIndex = useRef(0);
 
   useEffect(() => {
-    setImgSrc(src);
-  }, [src]);
+    fallbackIndex.current = 0;
+    setImgSrc(primary);
+  }, [primary]);
 
   return (
     <div
@@ -55,7 +67,12 @@ export function McItemSlot({
         height={s.img}
         className="mc-pixel-image object-contain drop-shadow-[2px_2px_0_rgba(0,0,0,0.8)]"
         onError={() => {
-          if (imgSrc !== FALLBACK) setImgSrc(FALLBACK);
+          const nextIdx = fallbackIndex.current + 1;
+          const next = fallbackChain[nextIdx];
+          if (next && next !== imgSrc) {
+            fallbackIndex.current = nextIdx;
+            setImgSrc(next);
+          }
         }}
       />
     </div>

@@ -52,7 +52,11 @@ export type ProceduralSoundId =
   | "ambientDesert"
   | "ambientSnow"
   | "ambientNether"
-  | "ambientEnd";
+  | "ambientEnd"
+  | "slotTick"
+  | "slotReelStop"
+  | "slotLand"
+  | "slotWin";
 
 export type SoundId =
   | "ui.hover"
@@ -91,7 +95,12 @@ export type SoundId =
   | "ambient.season.desert"
   | "ambient.season.snow"
   | "ambient.season.nether"
-  | "ambient.season.end";
+  | "ambient.season.end"
+  | "arcade.slotTick"
+  | "arcade.slotStop"
+  | "arcade.slotLand"
+  | "arcade.slotRotten"
+  | "arcade.slotWin";
 
 export interface SoundDefinition {
   id: SoundId;
@@ -133,7 +142,10 @@ export type AudioEventName =
   | "easter:creeper"
   | "easter:herobrine"
   | "easter:enderman"
-  | "easter:secretPage";
+  | "easter:secretPage"
+  | "arcade:slotTick"
+  | "arcade:slotReelStop"
+  | "arcade:slotWin";
 
 export interface AudioEventPayload {
   "resource:collect": { type?: ResourceSoundType; templateId?: string; rarity?: string };

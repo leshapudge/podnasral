@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { OsBootGrassBlock } from "./os-boot-grass-block";
 import { OsDesktopTaskbar } from "./os-desktop-taskbar";
 import { cn } from "@/lib/utils";
@@ -19,10 +20,13 @@ function OsDesktopExperienceInner({
   children,
 }: OsDesktopExperienceProps) {
   const searchParams = useSearchParams();
-  const [open, setOpen] = useState(() => {
-    const tab = searchParams.get("tab");
-    return Boolean(tab && tab !== "overview");
-  });
+  const tabFromUrl = searchParams.get("tab");
+  const wantsOpen = Boolean(tabFromUrl && tabFromUrl !== "overview");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (ready && wantsOpen) setOpen(true);
+  }, [ready, wantsOpen]);
 
   const handleOpen = useCallback(() => {
     if (!ready) return;
@@ -33,12 +37,15 @@ function OsDesktopExperienceInner({
     setOpen(false);
   }, []);
 
+  const showDesktop = !open || !ready;
+  const showWindow = open && ready;
+
   return (
     <div className="mc-os-desktop">
       <div className="mc-os-desktop-grid" aria-hidden />
 
       <AnimatePresence mode="wait">
-        {!open && (
+        {showDesktop && (
           <motion.div
             key="desktop"
             className="mc-os-desktop-ui"
@@ -56,7 +63,7 @@ function OsDesktopExperienceInner({
                   "mc-os-grass-block-btn",
                   ready ? "cursor-pointer" : "cursor-wait",
                 )}
-                aria-label={ready ? "Открыть MINESEASON" : "Загрузка"}
+                aria-label={ready ? `Открыть ${EVENT_BRAND}` : "Загрузка"}
               >
                 <motion.div
                   animate={{ y: [0, -8, 0] }}
@@ -66,7 +73,7 @@ function OsDesktopExperienceInner({
                 </motion.div>
               </button>
               <p className={cn("mc-os-boot-hint", ready && "mc-os-boot-hint--pulse")}>
-                {ready ? "Нажмите чтобы продолжить" : "Загрузка MINESEASON..."}
+                {ready ? "Нажмите чтобы продолжить" : `Загрузка ${EVENT_BRAND}...`}
               </p>
               {ready && (
                 <p className="text-center text-xs text-[#2d5a27]/90">
@@ -85,7 +92,7 @@ function OsDesktopExperienceInner({
       </AnimatePresence>
 
       <AnimatePresence>
-        {open && ready && (
+        {showWindow && (
           <motion.div
             key="window"
             className="mc-os-desktop-window"
@@ -109,7 +116,7 @@ function DesktopBootFallback() {
       <div className="mc-os-desktop-ui">
         <div className="mc-os-desktop-center">
           <OsBootGrassBlock size={140} />
-          <p className="mc-os-boot-hint">Загрузка MINESEASON...</p>
+          <p className="mc-os-boot-hint">Загрузка {EVENT_BRAND}...</p>
         </div>
         <OsDesktopTaskbar ready={false} onOpenApp={() => {}} />
       </div>

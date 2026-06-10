@@ -1,8 +1,29 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: Monocraft;
+  src: url("/fonts/Monocraft.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Monocraft;
+  src: url("/fonts/Monocraft-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-mc: Monocraft, ui-monospace, monospace;
+}
+
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-silkscreen), ui-monospace, monospace;
+  --font-sans: var(--font-mc);
+  --font-display: var(--font-mc);
+  --font-mono: var(--font-mc);
 
   --color-background: #070b12;
   --color-foreground: #f0f4f8;
@@ -53,7 +74,17 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground;
+    font-family: var(--font-mc);
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
   }
 }
 
@@ -207,7 +238,7 @@
     border: 2px solid #1a1208;
     background: linear-gradient(180deg, #55c57a 0%, #3d8f5a 45%, #2d5a27 100%);
     color: #fff;
-    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-family: var(--font-mc);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -240,7 +271,7 @@
   .mc-os-start-menu-header {
     padding: 0.65rem 0.85rem;
     border-bottom: 1px solid #1a1208;
-    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-family: var(--font-mc);
     font-size: 10px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -286,7 +317,7 @@
     padding: 0 0.65rem;
     border: 1px solid #1a1208;
     background: linear-gradient(180deg, #3d3024 0%, #2a2118 100%);
-    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-family: var(--font-mc);
     font-size: 11px;
   }
 
@@ -394,7 +425,7 @@
 
   .mc-os-boot-hint {
     margin: 0;
-    font-family: var(--font-silkscreen), ui-monospace, monospace;
+    font-family: var(--font-mc);
     font-size: 11px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -467,7 +498,7 @@
     max-height: 100%;
   }
 
-  /* ── MINESEASON OS (Minecraft GUI aesthetic) ── */
+  /* ── PODNASRAL OS (Minecraft GUI aesthetic) ── */
   .mc-os-scene {
     background: #0a1628;
   }
