@@ -156,22 +156,65 @@
     width: 100%;
     height: 100dvh;
     overflow: hidden;
-    background: linear-gradient(
-      180deg,
-      #4a90c2 0%,
-      #6eb5e8 28%,
-      #87ceeb 38%,
-      #55c57a 38%,
-      #3d8f5a 62%,
-      #2d5a27 100%
-    );
+    background: #0a1628;
+  }
+
+  .mc-panorama-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    background: #0a1628;
+  }
+
+  .mc-panorama-fallback {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      url("/assets/mc/panorama/3.png") center / cover no-repeat,
+      linear-gradient(180deg, #5c9fd4 0%, #3d7aaa 38%, #2a5f3e 72%, #4a3520 100%);
+    image-rendering: pixelated;
+  }
+
+  .mc-panorama-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .mc-panorama-canvas--ready {
+    opacity: 1;
+  }
+
+  .mc-panorama-canvas--failed + .mc-panorama-vignette,
+  .mc-panorama-bg:has(.mc-panorama-canvas--failed) .mc-panorama-fallback {
+    opacity: 1;
+  }
+
+  .mc-panorama-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 90% 75% at 50% 42%, transparent 30%, rgba(0, 0, 0, 0.45) 100%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, transparent 25%, transparent 70%, rgba(0, 0, 0, 0.35) 100%);
   }
 
   .mc-os-desktop-grid {
     position: absolute;
     inset: 0;
+    z-index: 1;
     pointer-events: none;
-    opacity: 0.22;
+    opacity: 0.1;
     background-image:
       linear-gradient(rgba(0, 0, 0, 0.12) 2px, transparent 2px),
       linear-gradient(90deg, rgba(0, 0, 0, 0.08) 2px, transparent 2px);
@@ -426,16 +469,31 @@
   .mc-os-boot-hint {
     margin: 0;
     font-family: var(--font-mc);
-    font-size: 11px;
-    letter-spacing: 0.12em;
+    font-size: 17px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(232, 213, 176, 0.85);
+    color: rgba(232, 213, 176, 0.9);
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
   }
 
   @media (min-width: 640px) {
     .mc-os-boot-hint {
-      font-size: 13px;
+      font-size: 22px;
+    }
+  }
+
+  .mc-os-boot-subtitle {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-mc);
+    font-size: 14px;
+    text-align: center;
+    color: rgba(232, 213, 176, 0.85);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  @media (min-width: 640px) {
+    .mc-os-boot-subtitle {
+      font-size: 17px;
     }
   }
 

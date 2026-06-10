@@ -8,10 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:fresh": "rm -rf .next && next dev",
-    "build": "npm run icons:sync && prisma generate && next build",
+    "build": "npm run icons:sync && npm run panorama:sync && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "start:render": "prisma db push && npm run icons:sync && npm run db:seed && next start",
+    "start:render": "prisma db push && npm run icons:sync && npm run panorama:sync && npm run db:seed && next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -19,6 +19,7 @@
     "db:studio": "prisma studio",
     "db:seed": "npx tsx prisma/seed.ts",
     "icons:sync": "node scripts/sync-item-icons.mjs",
+    "panorama:sync": "node scripts/sync-panorama.mjs",
     "audio:fetch": "node scripts/download-mc-sounds.mjs"
   },
   "dependencies": {
@@ -43,21 +44,23 @@
     "lucide-react": "^0.511.0",
     "next": "^15.3.3",
     "next-auth": "^5.0.0-beta.25",
+    "prisma": "^6.8.2",
     "react": "^19.1.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.25.42",
-    "prisma": "^6.8.2",
-    "tsx": "^4.19.4"
+    "three": "^0.172.0",
+    "tsx": "^4.19.4",
+    "zod": "^3.25.42"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
+    "@types/three": "^0.184.1",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
     "tailwindcss": "^4.1.8",

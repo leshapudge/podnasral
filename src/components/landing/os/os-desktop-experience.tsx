@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { EVENT_BRAND } from "@/lib/event/event-brand";
+import { MinecraftPanoramaBackground } from "./minecraft-panorama-background";
 import { OsBootGrassBlock } from "./os-boot-grass-block";
 import { OsDesktopTaskbar } from "./os-desktop-taskbar";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ function OsDesktopExperienceInner({
 
   return (
     <div className="mc-os-desktop">
+      <MinecraftPanoramaBackground />
       <div className="mc-os-desktop-grid" aria-hidden />
 
       <AnimatePresence mode="wait">
@@ -76,9 +78,7 @@ function OsDesktopExperienceInner({
                 {ready ? "Нажмите чтобы продолжить" : `Загрузка ${EVENT_BRAND}...`}
               </p>
               {ready && (
-                <p className="text-center text-xs text-[#2d5a27]/90">
-                  Ивент начнётся 25 июня 2026
-                </p>
+                <p className="mc-os-boot-subtitle">Ивент начнётся 25 июня 2026</p>
               )}
             </div>
 
@@ -112,6 +112,7 @@ function OsDesktopExperienceInner({
 function DesktopBootFallback() {
   return (
     <div className="mc-os-desktop">
+      <MinecraftPanoramaBackground />
       <div className="mc-os-desktop-grid" aria-hidden />
       <div className="mc-os-desktop-ui">
         <div className="mc-os-desktop-center">

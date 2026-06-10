@@ -19,7 +19,7 @@ export function OsBootGrassBlock({ className, size = 128 }: OsBootGrassBlockProp
       height={size}
       priority
       className={cn(
-        "mc-pixel-image object-contain drop-shadow-[8px_12px_0_rgba(0,0,0,0.35)]",
+        "mc-pixel-image object-contain",
         className,
       )}
     />
