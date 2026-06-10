@@ -292,6 +292,11 @@ export interface ArcadeSpinResult {
   coins: number;
   diamonds: number;
   netWorth: number;
+  player?: {
+    twitchLogin: string | null;
+    name: string | null;
+    image: string | null;
+  };
 }
 
 export interface GameSearchResult {

@@ -63,6 +63,47 @@ function ArcadeToast({ message, onDone }: { message: string; onDone: () => void 
 
 const EMPTY_BOARDS: ArcadeLeaderboards = { winners: [], losers: [] };
 
+function patchArcadeLeaderboards(
+  boards: ArcadeLeaderboards,
+  player: { twitchLogin: string | null; name: string | null; image: string | null },
+  coins: number,
+  diamonds: number,
+  netWorth: number,
+  limit = 5,
+): ArcadeLeaderboards {
+  const without = (rows: ArcadeLeaderboardEntry[]) =>
+    rows.filter((row) =>
+      player.twitchLogin ? row.twitchLogin !== player.twitchLogin : row.name !== player.name,
+    );
+
+  const entry: ArcadeLeaderboardEntry = {
+    rank: 0,
+    twitchLogin: player.twitchLogin,
+    name: player.name ?? player.twitchLogin ?? "?",
+    image: player.image,
+    coins,
+    diamonds,
+    netWorth,
+  };
+
+  let winners = without(boards.winners);
+  let losers = without(boards.losers);
+
+  if (coins > 0) {
+    winners = [...winners, entry]
+      .sort((a, b) => b.coins - a.coins)
+      .slice(0, limit)
+      .map((row, i) => ({ ...row, rank: i + 1 }));
+  } else if (coins < 0) {
+    losers = [...losers, entry]
+      .sort((a, b) => a.coins - b.coins)
+      .slice(0, limit)
+      .map((row, i) => ({ ...row, rank: i + 1 }));
+  }
+
+  return { winners, losers };
+}
+
 export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerArcadePanelProps) {
   const audio = useAudioOptional();
   const [wallet, setWallet] = useState<ArcadeWallet | null>(null);
@@ -71,6 +112,7 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
   const [wonFlash, setWonFlash] = useState(false);
   const [spinOutcome, setSpinOutcome] = useState<ArcadeSpinResult | null>(null);
   const pendingRef = useRef<ArcadeSpinResult | null>(null);
+  const spinningRef = useRef(false);
 
   const {
     spinning,
@@ -85,6 +127,7 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
   } = useSlotAnimation();
 
   const refreshLeaderboard = useCallback(() => {
+    if (spinningRef.current) return;
     api
       .getArcadeLeaderboard()
       .then(setLeaderboards)
@@ -97,9 +140,15 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
   }, [isAuthenticated]);
 
   useEffect(() => {
+    spinningRef.current = spinning;
+  }, [spinning]);
+
+  useEffect(() => {
     refreshLeaderboard();
     refreshWallet();
-    const t = setInterval(refreshLeaderboard, 30_000);
+    const t = setInterval(() => {
+      if (!spinningRef.current) refreshLeaderboard();
+    }, 30_000);
     return () => clearInterval(t);
   }, [refreshLeaderboard, refreshWallet]);
 
@@ -121,10 +170,18 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
       } else {
         setToast(`−${SLOT_BET}`);
       }
-      refreshLeaderboard();
-      refreshWallet();
+
+      if (r.player) {
+        setLeaderboards((prev) =>
+          patchArcadeLeaderboards(prev, r.player!, r.coins, r.diamonds, r.netWorth),
+        );
+      }
+
+      window.setTimeout(() => {
+        if (!spinningRef.current) refreshLeaderboard();
+      }, 500);
     },
-    [refreshLeaderboard, refreshWallet],
+    [refreshLeaderboard],
   );
 
   const handleSpinComplete = useCallback(() => {
@@ -148,7 +205,7 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
     try {
       const [r] = await Promise.all([
         api.arcadeSpin(SLOT_BET),
-        new Promise<void>((res) => window.setTimeout(res, 2200)),
+        new Promise<void>((res) => window.setTimeout(res, 1800)),
       ]);
       pendingRef.current = r;
       setSpinOutcome(r);

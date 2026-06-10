@@ -399,6 +399,8 @@ export function MinecraftSlotMachine({
   const reel2 = useRef<ReelHandle>(null);
   const reels = useMemo(() => [reel0, reel1, reel2], []);
   const stoppingRef = useRef(false);
+  const spinOutcomeRef = useRef(spinOutcome);
+  spinOutcomeRef.current = spinOutcome;
 
   const playTick = useCallback(() => {
     void audio?.playSound("arcade.slotTick");
@@ -452,15 +454,16 @@ export function MinecraftSlotMachine({
         targets.map((t, i) =>
           reels[i].current?.stopOn(t, i).then(() => {
             playStop(i);
-            if (i === 2 && spinOutcome) {
-              window.setTimeout(() => playFinalSound(spinOutcome), 160);
+            const outcome = spinOutcomeRef.current;
+            if (i === 2 && outcome) {
+              window.setTimeout(() => playFinalSound(outcome), 160);
             }
           }),
         ),
       );
       onSpinComplete?.();
     })();
-  }, [targets, reels, spinOutcome, onSpinComplete, playStop, playFinalSound]);
+  }, [targets, reels, onSpinComplete, playStop, playFinalSound]);
 
   const initial = resultSymbols ?? null;
 

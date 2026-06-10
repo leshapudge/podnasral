@@ -88,6 +88,14 @@ export async function spinArcade(userId: string, _bet?: number) {
       arcadeCoins: nextCoins,
       arcadeNetWorth: calcNetWorth(nextCoins, user.arcadeDiamonds),
     },
+    select: {
+      arcadeCoins: true,
+      arcadeDiamonds: true,
+      arcadeNetWorth: true,
+      twitchLogin: true,
+      name: true,
+      image: true,
+    },
   });
 
   return {
@@ -104,6 +112,11 @@ export async function spinArcade(userId: string, _bet?: number) {
     coins: updated.arcadeCoins,
     diamonds: updated.arcadeDiamonds,
     netWorth: updated.arcadeNetWorth,
+    player: {
+      twitchLogin: updated.twitchLogin,
+      name: updated.name ?? updated.twitchLogin,
+      image: updated.image,
+    },
   };
 }
 
@@ -121,7 +134,7 @@ export async function getArcadeLeaderboards(limit = 10) {
   const [winnerUsers, loserUsers] = await Promise.all([
     prisma.user.findMany({
       where: {
-        arcadeNetWorth: { gt: 0 },
+        arcadeCoins: { gt: 0 },
         twitchLogin: { not: null },
         accounts: authorizedStreamerUserFilter.accounts,
       },
@@ -131,7 +144,7 @@ export async function getArcadeLeaderboards(limit = 10) {
     }),
     prisma.user.findMany({
       where: {
-        arcadeNetWorth: { lt: 0 },
+        arcadeCoins: { lt: 0 },
         twitchLogin: { not: null },
         accounts: authorizedStreamerUserFilter.accounts,
       },
