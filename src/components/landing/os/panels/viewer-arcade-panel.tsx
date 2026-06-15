@@ -221,27 +221,35 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
   const Frame = embedded ? "div" : OsPanelFrame;
 
   if (!isAuthenticated) {
-    const loginBlock = (
+    const guestBlock = (
       <ArcadeLeaderboardRow boards={leaderboards}>
-        <div className="flex flex-col items-center gap-4 py-6">
-          <Image
-            src="/assets/mc/grass-block-3d.png"
-            alt=""
-            width={72}
-            height={72}
-            className="mc-pixel-image drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
-          />
+        <div className="flex flex-col items-center gap-5 py-2">
+          <div className="flex items-start justify-center gap-2 sm:gap-3">
+            <MinecraftSlotMachine
+              spinning={false}
+              targets={targets}
+              spinKey={spinKey}
+              resultSymbols={resultSymbols}
+              won={false}
+              spinOutcome={null}
+              onSpinComplete={() => {}}
+            />
+            <SlotRulesButton className="mt-6 sm:mt-8" />
+          </div>
+          <p className="text-center text-xs text-[#a89070]">
+            В демо-режиме можно посмотреть слот. Чтобы крутить и попадать в рейтинги — войди ниже.
+          </p>
           <Link
             href="/login?callbackUrl=%2F%3Ftab%3Dkazik"
             className="mc-os-btn px-6 py-2 text-xs uppercase"
           >
-            Twitch
+            Войти через Twitch
           </Link>
         </div>
       </ArcadeLeaderboardRow>
     );
-    if (embedded) return <div {...frameProps}>{loginBlock}</div>;
-    return <OsPanelFrame>{loginBlock}</OsPanelFrame>;
+    if (embedded) return <div {...frameProps}>{guestBlock}</div>;
+    return <OsPanelFrame>{guestBlock}</OsPanelFrame>;
   }
 
   return (

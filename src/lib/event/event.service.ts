@@ -1,8 +1,9 @@
 import prisma from "@/lib/db/prisma";
 import { notFound } from "@/lib/api/errors";
-import { parseEventConfig } from "./config";
+import { defaultEventConfigJson, parseEventConfig } from "./config";
 import { getDaysUntilStart, isEventUpcoming } from "./event-timing";
 import { EVENT_DURATION_DAYS, EVENT_START_ISO } from "./event-roster";
+import { EVENT_SEED_NAME } from "./event-brand";
 
 const SEED_EVENT_ID = "seed-event-1";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,6 +12,31 @@ function buildSeedSchedule() {
   const startsAt = new Date(EVENT_START_ISO);
   const endsAt = new Date(startsAt.getTime() + EVENT_DURATION_DAYS * DAY_MS);
   return { startsAt, endsAt };
+}
+
+async function ensureSeedEventExists() {
+  const existing = await prisma.event.findUnique({
+    where: { id: SEED_EVENT_ID },
+    include: { boss: true },
+  });
+  if (existing) return existing;
+
+  const { startsAt, endsAt } = buildSeedSchedule();
+  const now = Date.now();
+  const status =
+    now >= endsAt.getTime() ? "ENDED" : now >= startsAt.getTime() ? "ACTIVE" : "UPCOMING";
+
+  return prisma.event.create({
+    data: {
+      id: SEED_EVENT_ID,
+      name: EVENT_SEED_NAME,
+      startsAt,
+      endsAt,
+      status,
+      config: defaultEventConfigJson(),
+    },
+    include: { boss: true },
+  });
 }
 
 async function normalizeSeedEventSchedule(event: {
@@ -45,12 +71,16 @@ export async function getActiveEvent() {
 }
 
 export async function getActiveEventOrNull() {
-  const event = await prisma.event.findFirst({
+  let event = await prisma.event.findFirst({
     where: { status: { in: ["ACTIVE", "UPCOMING"] } },
     orderBy: { startsAt: "asc" },
     include: { boss: true },
   });
-  if (!event) return null;
+  if (!event) {
+    const seeded = await ensureSeedEventExists();
+    if (seeded.status === "ENDED") return null;
+    event = seeded;
+  }
 
   const normalized = await normalizeSeedEventSchedule({
     id: event.id,
