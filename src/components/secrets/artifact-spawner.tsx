@@ -1,24 +1,27 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import { getArtifactsForPage, getArtifactPosition } from "@/lib/secrets/artifact.engine";
 import { getArtifactTexture } from "@/lib/secrets/artifact-assets";
+import { buildSecretRouteKey } from "@/lib/secrets/route-key";
 import { useSecrets } from "./secret-context";
 
 export function ArtifactSpawner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { state, collectArtifact } = useSecrets();
   const found = new Set(state.artifacts);
-  const onPage = getArtifactsForPage(pathname, found);
+  const routeKey = buildSecretRouteKey(pathname, searchParams.get("tab"));
+  const onPage = getArtifactsForPage(routeKey, found);
 
   if (!onPage.length) return null;
 
   return (
     <>
       {onPage.map((artifact) => {
-        const pos = getArtifactPosition(artifact.slug, pathname);
+        const pos = getArtifactPosition(artifact.slug, routeKey);
         return (
           <motion.button
             key={artifact.slug}

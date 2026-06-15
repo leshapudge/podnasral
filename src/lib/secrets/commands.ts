@@ -25,9 +25,9 @@ export function executeSecretCommand(input: string): CommandResult | null {
       return { message: "§aNotch§r: Thanks for playing! — removed Herobrine in Beta 1.6.6" };
     case "/chunk":
       return {
-        message: "Coordinates corrupted... try /lost-chunk",
+        message: "Данные чанка восстановлены. Открой вкладку «Секреты» в OS.",
         action: "navigate",
-        href: "/lost-chunk",
+        href: "/?tab=achievements",
       };
     case "/debug":
       return { message: "Secret debug mode enabled.", action: "toast" };

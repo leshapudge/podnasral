@@ -67,6 +67,7 @@ export interface CollectionState {
     icon: string;
     rarity: Rarity;
     description: string;
+    pages: string[];
     found: boolean;
     foundAt?: string;
   }[];

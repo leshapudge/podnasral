@@ -19,6 +19,7 @@ import type { CollectionState, UnlockResult } from "@/lib/secrets/types";
 import { executeSecretCommand, type CommandResult } from "@/lib/secrets/commands";
 import { rollWindowCloseEasterEgg } from "@/lib/secrets/window-close-easter-egg";
 import { emitAudioEvent } from "@/lib/audio/event-bus";
+import { buildSecretRouteKey } from "@/lib/secrets/route-key";
 
 interface ToastMessage {
   id: string;
@@ -72,6 +73,8 @@ async function syncUnlock(type: "achievement" | "artifact", slug: string) {
 
 export function SecretProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [routeTab, setRouteTab] = useState<string | null>(null);
+  const routeKey = buildSecretRouteKey(pathname, routeTab);
   const { data: session } = useSession();
   const [state, setState] = useState<GuestSecretState>(() => loadGuestState());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -88,7 +91,28 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-const TOAST_AUTO_DISMISS_MS = 4500;
+  const TOAST_AUTO_DISMISS_MS = 4500;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const readTab = () => new URLSearchParams(window.location.search).get("tab");
+    setRouteTab(readTab());
+
+    const pollId = window.setInterval(() => {
+      const nextTab = readTab();
+      setRouteTab((prevTab) => (prevTab === nextTab ? prevTab : nextTab));
+    }, 400);
+
+    return () => {
+      window.clearInterval(pollId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setRouteTab(new URLSearchParams(window.location.search).get("tab"));
+  }, [pathname]);
 
   const addToast = useCallback(
     (title: string, body?: string, icon?: string, texture?: string) => {
@@ -183,20 +207,20 @@ const TOAST_AUTO_DISMISS_MS = 4500;
       setShowCreeperExplosion(true);
       void unlockAchievement("creeper-fan");
     }
-    evaluate(next, pathname);
-  }, [evaluate, pathname, unlockAchievement]);
+    evaluate(next, routeKey);
+  }, [evaluate, routeKey, unlockAchievement]);
 
   const recordHerobrineSeen = useCallback(() => {
     const next = patchGuestState({ herobrineSeen: true });
     setState(next);
-    evaluate(next, pathname);
-  }, [evaluate, pathname]);
+    evaluate(next, routeKey);
+  }, [evaluate, routeKey]);
 
   const recordCornerHit = useCallback(() => {
     const next = patchGuestState({ cornerHit: true });
     setState(next);
-    evaluate(next, pathname);
-  }, [evaluate, pathname]);
+    evaluate(next, routeKey);
+  }, [evaluate, routeKey]);
 
   const triggerWindowCloseEasterEgg = useCallback(() => {
     const roll = rollWindowCloseEasterEgg();
@@ -220,15 +244,19 @@ const TOAST_AUTO_DISMISS_MS = 4500;
     emitAudioEvent("easter:enderman");
   }, [recordHerobrineSeen]);
 
-  const runCommand = useCallback((input: string): CommandResult | null => {
-    const result = executeSecretCommand(input);
-    if (!result) return null;
-    const next = patchGuestState({
-      commandsRun: [...new Set([...stateRef.current.commandsRun, input.trim().toLowerCase()])],
-    });
-    setState(next);
-    return result;
-  }, []);
+  const runCommand = useCallback(
+    (input: string): CommandResult | null => {
+      const result = executeSecretCommand(input);
+      if (!result) return null;
+      const next = patchGuestState({
+        commandsRun: [...new Set([...stateRef.current.commandsRun, input.trim().toLowerCase()])],
+      });
+      setState(next);
+      evaluate(next, routeKey);
+      return result;
+    },
+    [evaluate, routeKey],
+  );
 
   // Sync guest progress to DB after login + hydrate from server
   useEffect(() => {
@@ -272,30 +300,30 @@ const TOAST_AUTO_DISMISS_MS = 4500;
 
   // Page visit tracking
   useEffect(() => {
-    if (!pathname) return;
+    if (!routeKey) return;
     const visited = new Set(stateRef.current.visitedPages);
-    if (!visited.has(pathname)) {
-      visited.add(pathname);
+    if (!visited.has(routeKey)) {
+      visited.add(routeKey);
       const next = patchGuestState({ visitedPages: [...visited] });
       setState(next);
-      evaluate(next, pathname);
+      evaluate(next, routeKey);
     } else {
-      evaluate(stateRef.current, pathname);
+      evaluate(stateRef.current, routeKey);
     }
-  }, [pathname, evaluate]);
+  }, [routeKey, evaluate]);
 
   // Night owl check on mount + hourly
   useEffect(() => {
     const check = () => {
       const hour = new Date().getHours();
       if (hour === 3) {
-        evaluate(stateRef.current, pathname);
+        evaluate(stateRef.current, routeKey);
       }
     };
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [pathname, evaluate]);
+  }, [routeKey, evaluate]);
 
   // Active time tracker (AFK 1 hour)
   useEffect(() => {
@@ -308,7 +336,7 @@ const TOAST_AUTO_DISMISS_MS = 4500;
       const next = { ...prev, activeMs, lastActiveAt: now };
       saveGuestState(next);
       setState(next);
-      evaluate(next, pathname);
+      evaluate(next, routeKey);
     };
 
     window.addEventListener("mousemove", onActivity);
@@ -323,7 +351,7 @@ const TOAST_AUTO_DISMISS_MS = 4500;
       window.removeEventListener("click", onActivity);
       clearInterval(tick);
     };
-  }, [pathname, evaluate]);
+  }, [routeKey, evaluate]);
 
   const collection = useMemo(() => buildCollectionFromGuest(state), [state]);
 

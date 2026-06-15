@@ -3,7 +3,7 @@ export const APP_TABS = [
   { slug: "overview", label: "Стримеры" },
   { slug: "inventory", label: "Инвентарь" },
   { slug: "items", label: "Предметы" },
-  { slug: "achievements", label: "Достижения" },
+  { slug: "achievements", label: "Секреты" },
 ] as const;
 
 /** Вкладки без кнопки в навбаре (профиль открывается по клику на аватар). */
@@ -19,6 +19,7 @@ export function resolveTabSlug(value: string | null): AppTabSlug {
   if (value === "season") return "overview";
   if (value === "boss") return "overview";
   if (value === "secrets") return "achievements";
+  if (value === "collection") return "achievements";
   if (value === "arcade") return "kazik";
   const found = APP_TABS.find((t) => t.slug === value);
   return found?.slug ?? "overview";

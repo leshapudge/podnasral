@@ -20,7 +20,7 @@ const TAB_LINKS: { tab: AppTabSlug; label: string }[] = [
   { tab: "profile", label: "Профиль" },
   { tab: "inventory", label: "Инвентарь" },
   { tab: "items", label: "Предметы" },
-  { tab: "achievements", label: "Достижения" },
+  { tab: "achievements", label: "Секреты" },
 ];
 
 const ROUTE_LINKS = [

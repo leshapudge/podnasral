@@ -2,22 +2,32 @@ import type { SecretAchievementDef, ArtifactDef, SecretCommandDef } from "./type
 import { EVENT_BRAND, EVENT_WORLD_SEED } from "@/lib/event/event-brand";
 
 export const EXPLORER_PAGES = [
-  "/",
-  "/login",
-  "/dashboard",
-  "/profile",
-  "/world",
-  "/bosses",
-  "/completions",
-  "/collection",
+  "/?tab=overview",
+  "/?tab=kazik",
+  "/?tab=inventory",
+  "/?tab=items",
+  "/?tab=achievements",
 ] as const;
 
 export const SECRET_PAGES = [
-  "/stronghold",
-  "/ancient-city",
-  "/lost-chunk",
-  "/herobrine",
+  "/?tab=achievements",
+  "/streamer",
+  "/settings",
+  "/auk",
 ] as const;
+
+export const SECRET_ROUTE_LABELS: Record<string, string> = {
+  "/?tab=overview": "вкладка «Стримеры»",
+  "/?tab=kazik": "вкладка «Казик»",
+  "/?tab=inventory": "вкладка «Инвентарь»",
+  "/?tab=items": "вкладка «Предметы»",
+  "/?tab=achievements": "вкладка «Секреты»",
+  "/login": "страница входа",
+  "/streamer": "панель стримера",
+  "/settings": "страница настроек",
+  "/auk": "страница донатов аукциона",
+  "/admin": "админ-панель",
+};
 
 export const SECRET_ACHIEVEMENTS: SecretAchievementDef[] = [
   {
@@ -41,7 +51,7 @@ export const SECRET_ACHIEVEMENTS: SecretAchievementDef[] = [
   {
     slug: "explorer",
     name: "Explorer",
-    description: "Посетил все основные страницы",
+    description: "Открыл все основные вкладки OS",
     icon: "🧭",
     rarity: "EPIC",
     points: 75,
@@ -68,7 +78,7 @@ export const SECRET_ACHIEVEMENTS: SecretAchievementDef[] = [
   {
     slug: "chunk-explorer",
     name: "Chunk Explorer",
-    description: "Нашёл секретную страницу Lost Chunk",
+    description: "Запустил секретную команду /chunk",
     icon: "🗺️",
     rarity: "EPIC",
     points: 80,
@@ -92,7 +102,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🥚",
     rarity: "LEGENDARY",
     description: "Яйцо дракона Края. Пульсирует тёмной энергией.",
-    pages: ["/stronghold"],
+    pages: ["/?tab=overview", "/?tab=items"],
   },
   {
     slug: "totem-of-undying",
@@ -100,7 +110,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🪶",
     rarity: "EPIC",
     description: "Даёт второй шанс... или просто красиво светится.",
-    pages: ["/profile", "/ancient-city"],
+    pages: ["/?tab=inventory", "/streamer"],
   },
   {
     slug: "nether-star",
@@ -108,7 +118,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "⭐",
     rarity: "LEGENDARY",
     description: "Осколок побеждённого Иссушителя.",
-    pages: ["/bosses", "/herobrine"],
+    pages: ["/?tab=kazik", "/auk"],
   },
   {
     slug: "elytra",
@@ -116,7 +126,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🪽",
     rarity: "EPIC",
     description: `Крылья для полёта над миром ${EVENT_BRAND}.`,
-    pages: ["/world", "/lost-chunk"],
+    pages: ["/login", "/settings"],
   },
   {
     slug: "music-disc-11",
@@ -124,7 +134,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "💿",
     rarity: "RARE",
     description: "Жуткая пластинка из заброшенной шахты.",
-    pages: ["/", "/login"],
+    pages: ["/?tab=overview", "/login"],
   },
   {
     slug: "music-disc-pigstep",
@@ -132,7 +142,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🎵",
     rarity: "RARE",
     description: "Бастионный бит из Незера.",
-    pages: ["/completions", "/dashboard"],
+    pages: ["/?tab=kazik", "/streamer"],
   },
   {
     slug: "notch-apple",
@@ -140,7 +150,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🍎",
     rarity: "LEGENDARY",
     description: "Зачарованное золотое яблоко Notch.",
-    pages: ["/inventory", "/stronghold"],
+    pages: ["/?tab=achievements", "/settings"],
   },
   {
     slug: "end-crystal",
@@ -148,7 +158,7 @@ export const ARTIFACTS: ArtifactDef[] = [
     icon: "🔮",
     rarity: "EPIC",
     description: "Кристалл, питающий дракона Края.",
-    pages: ["/herobrine", "/ancient-city"],
+    pages: ["/?tab=items", "/auk"],
   },
 ];
 
@@ -157,7 +167,7 @@ export const SECRET_COMMANDS: SecretCommandDef[] = [
   { command: "/seed", description: "Показать сид мира" },
   { command: "/herobrine", description: "Вызвать Херобрина" },
   { command: "/notch", description: "Сообщение от Notch" },
-  { command: "/chunk", description: "Подсказка к Lost Chunk" },
+  { command: "/chunk", description: "Подсказка к коллекции артефактов" },
   { command: "/debug", description: "Статистика секретов", hidden: true },
 ];
 
@@ -169,4 +179,8 @@ export function getAchievementDef(slug: string) {
 
 export function getArtifactDef(slug: string) {
   return ARTIFACTS.find((a) => a.slug === slug);
+}
+
+export function getSecretRouteLabel(route: string) {
+  return SECRET_ROUTE_LABELS[route] ?? route;
 }

@@ -11,6 +11,7 @@ import { getAchievementTexture } from "@/lib/secrets/achievement-assets";
 import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { getArtifactTexture } from "@/lib/secrets/artifact-assets";
 import { MC_ASSETS } from "@/lib/landing/assets";
+import { getSecretRouteLabel } from "@/lib/secrets/definitions";
 import { cn } from "@/lib/utils";
 
 const RARITY_CLASS: Record<string, string> = {
@@ -29,8 +30,10 @@ export function CollectionPanel() {
     <div className="space-y-6">
       <div className="text-center">
         <Trophy className="mx-auto h-8 w-8 text-hypixel-gold" />
-        <h2 className="mt-2 font-display text-xl text-[#e8d5b0]">Достижения</h2>
-        <p className="text-xs text-[#7a6a52]">Коллекция наград и артефактов по всему {EVENT_BRAND}</p>
+        <h2 className="mt-2 font-display text-xl text-[#e8d5b0]">Секреты и артефакты</h2>
+        <p className="text-xs text-[#7a6a52]">
+          Коллекция наград и артефактов по всему {EVENT_BRAND}
+        </p>
       </div>
 
       <div className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-4">
@@ -50,7 +53,7 @@ export function CollectionPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
-          <h3 className="mb-3 font-display text-sm text-[#a89070]">Достижения</h3>
+          <h3 className="mb-3 font-display text-sm text-[#a89070]">Секретные достижения</h3>
           <ul className="space-y-2">
             {achievements.map((a, i) => (
               <motion.li
@@ -78,10 +81,10 @@ export function CollectionPanel() {
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-[#e8d5b0]">
-                        {a.unlocked ? a.name : "???"}
+                        {a.name}
                       </p>
                       <p className="truncate text-[10px] text-[#7a6a52]">
-                        {a.unlocked ? a.description : "Скрытое достижение"}
+                        {a.description}
                       </p>
                     </div>
                     {a.unlocked ? (
@@ -99,46 +102,48 @@ export function CollectionPanel() {
         <section>
           <h3 className="mb-3 font-display text-sm text-[#a89070]">Артефакты</h3>
           <ul className="space-y-2">
-            {artifacts.map((a, i) => (
-              <motion.li
-                key={a.slug}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <Card
-                  className={cn(
-                    "border bg-[#1a1208]/40",
-                    a.found ? RARITY_CLASS[a.rarity] : "border-[#1a1208] opacity-50",
-                  )}
+            {artifacts.map((a, i) => {
+              const routesHint = a.pages.map((route) => getSecretRouteLabel(route)).join(" · ");
+              return (
+                <motion.li
+                  key={a.slug}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.03 }}
                 >
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <McItemSlot
-                      src={a.found ? getArtifactTexture(a.slug) : MC_ASSETS.items.enderPearl}
-                      alt={a.found ? a.name : "?"}
-                      size="sm"
-                      active={a.found}
-                      enchanted={a.found && (a.rarity === "LEGENDARY" || a.rarity === "EPIC")}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[#e8d5b0]">
-                        {a.found ? a.name : "???"}
-                      </p>
-                      <p className="truncate text-[10px] text-[#7a6a52]">
-                        {a.found ? a.description : "Где-то на сайте..."}
-                      </p>
-                    </div>
-                    <Badge variant="outline">{a.rarity}</Badge>
-                  </CardContent>
-                </Card>
-              </motion.li>
-            ))}
+                  <Card
+                    className={cn(
+                      "border bg-[#1a1208]/40",
+                      a.found ? RARITY_CLASS[a.rarity] : "border-[#1a1208] opacity-70",
+                    )}
+                  >
+                    <CardContent className="flex items-center gap-3 p-3">
+                      <McItemSlot
+                        src={getArtifactTexture(a.slug)}
+                        alt={a.name}
+                        size="sm"
+                        active={a.found}
+                        enchanted={a.found && (a.rarity === "LEGENDARY" || a.rarity === "EPIC")}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[#e8d5b0]">{a.name}</p>
+                        <p className="truncate text-[10px] text-[#7a6a52]">
+                          {a.found ? a.description : `Подсказка: ищи на ${routesHint}`}
+                        </p>
+                      </div>
+                      <Badge variant="outline">{a.rarity}</Badge>
+                    </CardContent>
+                  </Card>
+                </motion.li>
+              );
+            })}
           </ul>
         </section>
       </div>
 
       <p className="text-center text-[10px] text-[#5c4a32]">
-        Подсказка: <kbd className="rounded bg-[#1a1208] px-1">/</kbd> для секретных команд
+        Подсказка: артефакты выглядят как мерцающий предмет на экране. Открой консоль через{" "}
+        <kbd className="rounded bg-[#1a1208] px-1">/</kbd> для секретных команд.
       </p>
     </div>
   );

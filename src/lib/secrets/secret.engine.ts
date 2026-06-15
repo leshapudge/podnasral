@@ -49,7 +49,7 @@ export class SecretEngine {
       toUnlock.push("herobrine-witness");
     }
 
-    if (pathname === "/lost-chunk" && !has("chunk-explorer")) {
+    if (state.commandsRun.includes("/chunk") && !has("chunk-explorer")) {
       toUnlock.push("chunk-explorer");
     }
 
