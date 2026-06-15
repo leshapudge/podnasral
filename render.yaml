@@ -1,14 +1,16 @@
 # Render Blueprint — бесплатный Web + PostgreSQL
 # https://dashboard.render.com/select-repo?type=blueprint
 databases:
-  - name: podnasral-db
+  # Keep existing Render resource names stable so Blueprint sync updates in place
+  # instead of trying to create replacement services/databases.
+  - name: strimkraft-db
     plan: free
-    databaseName: podnasral
-    user: podnasral
+    databaseName: strimkraft
+    user: strimkraft
 
 services:
   - type: web
-    name: podnasral
+    name: strimkraft
     runtime: node
     plan: free
     buildCommand: NPM_CONFIG_PRODUCTION=false npm install && npm run build
@@ -19,7 +21,7 @@ services:
         value: "22"
       - key: DATABASE_URL
         fromDatabase:
-          name: podnasral-db
+          name: strimkraft-db
           property: connectionString
       - key: AUTH_SECRET
         generateValue: true
