@@ -236,9 +236,6 @@ export function ViewerArcadePanel({ isAuthenticated, embedded = false }: ViewerA
             />
             <SlotRulesButton className="mt-6 sm:mt-8" />
           </div>
-          <p className="text-center text-xs text-[#a89070]">
-            В демо-режиме можно посмотреть слот. Чтобы крутить и попадать в рейтинги — войди ниже.
-          </p>
           <Link
             href="/login?callbackUrl=%2F%3Ftab%3Dkazik"
             className="mc-os-btn px-6 py-2 text-xs uppercase"

@@ -6,19 +6,15 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Coins,
-  Eye,
-  EyeOff,
   Gamepad2,
   Hammer,
   Package,
   Pause,
   Play,
-  RefreshCw,
   Skull,
   Sparkles,
   Swords,
   Trophy,
-  Link2,
 } from "lucide-react";
 import { McPageShell } from "@/components/landing/mc-page-shell";
 import { McAvatar } from "@/components/landing/os/mc-avatar";
@@ -95,7 +91,6 @@ export function StreamerPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [showDonationWebhook, setShowDonationWebhook] = useState(false);
   const [auctionSearchQuery, setAuctionSearchQuery] = useState("");
   const [auctionSearch, setAuctionSearch] = useState<AuctionGameSearchData | null>(null);
   const [auctionSearching, setAuctionSearching] = useState(false);
@@ -104,6 +99,7 @@ export function StreamerPanel() {
   const [recipes, setRecipes] = useState<CraftRecipeData[]>([]);
   const refreshSeq = useRef(0);
   const auctionSearchSeq = useRef(0);
+  const skipNextAuctionSearchRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const seq = ++refreshSeq.current;
@@ -145,16 +141,6 @@ export function StreamerPanel() {
 
   const counts = useMemo(() => (me ? inventoryCounts(me) : {}), [me]);
   const inventoryGrid = useMemo(() => (me ? inventoryGridFromMe(me) : null), [me]);
-  const donationWebhookUrl = useMemo(() => {
-    if (!me?.donationAlerts?.webhookPath) return null;
-    if (typeof window === "undefined") return me.donationAlerts.webhookPath;
-    return `${window.location.origin}${me.donationAlerts.webhookPath}`;
-  }, [me?.donationAlerts?.webhookPath]);
-  const donationWebhookPreview = useMemo(() => {
-    if (!donationWebhookUrl) return null;
-    const tail = donationWebhookUrl.slice(-12);
-    return `Скрыто ••••••••••••${tail}`;
-  }, [donationWebhookUrl]);
 
   const prepModifiers = useMemo(() => {
     if (!me) return [];
@@ -208,6 +194,10 @@ export function StreamerPanel() {
 
   useEffect(() => {
     if (!auctionId || auctionPhase !== "RUNNING") return;
+    if (skipNextAuctionSearchRef.current) {
+      skipNextAuctionSearchRef.current = false;
+      return;
+    }
     const q = auctionSearchQuery.trim();
     if (q.length < 2) {
       setAuctionSearch(null);
@@ -233,32 +223,6 @@ export function StreamerPanel() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function copyDonationWebhook() {
-    if (!donationWebhookUrl) return;
-    try {
-      await navigator.clipboard.writeText(donationWebhookUrl);
-      setInfo("Webhook URL скопирован");
-    } catch {
-      setInfo("Не удалось скопировать URL");
-    }
-  }
-
-  async function rotateDonationWebhook() {
-    await runAction(async () => {
-      const next = await api.streamer.rotateDonationAlertsWebhook();
-      setMe((prev) =>
-        prev
-          ? {
-              ...prev,
-              donationAlerts: { webhookPath: next.webhookPath },
-            }
-          : prev,
-      );
-      setShowDonationWebhook(false);
-      setInfo("Сгенерирован новый webhook URL");
-    });
   }
 
   async function runAuctionGameSearch(currentAuctionId: string, query = auctionSearchQuery) {
@@ -412,54 +376,6 @@ export function StreamerPanel() {
           </div>
         )}
 
-        {donationWebhookUrl && (
-          <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-4">
-            <OsSectionTitle className="mb-2">DonationAlerts</OsSectionTitle>
-            <p className="mb-2 text-xs text-[#7a6a52]">
-              Вставь этот URL в вебхук своего DonationAlerts. Донаты из него пойдут в твой аук.
-            </p>
-            <div className="rounded border border-[#2a2118] bg-[#0d0a08]/80 px-3 py-2 text-xs text-[#d6c3a1] break-all">
-              {showDonationWebhook ? donationWebhookUrl : donationWebhookPreview}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
-                onClick={() => setShowDonationWebhook((v) => !v)}
-              >
-                {showDonationWebhook ? (
-                  <>
-                    <EyeOff className="h-3.5 w-3.5" />
-                    Скрыть URL
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-3.5 w-3.5" />
-                    Показать URL
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
-                onClick={() => void copyDonationWebhook()}
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                Копировать URL
-              </button>
-              <button
-                type="button"
-                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
-                disabled={loading}
-                onClick={() => void rotateDonationWebhook()}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Сменить webhook ключ
-              </button>
-            </div>
-          </section>
-        )}
-
         {/* Табы */}
         <nav className="flex gap-1 rounded-lg border border-[#1a1208] bg-[#0d0a08]/80 p-1">
           {tabs.map(({ id, label, icon: Icon }) => (
@@ -604,6 +520,7 @@ export function StreamerPanel() {
                         event.preventDefault();
                         if (showAuctionSuggestions && auctionSearchFilteredGames.length > 0) {
                           const first = auctionSearchFilteredGames[0];
+                          skipNextAuctionSearchRef.current = true;
                           setSelectedAuctionGameId(first.catalogGameId);
                           setAuctionSearchQuery(first.title);
                           return;
@@ -621,6 +538,7 @@ export function StreamerPanel() {
                               type="button"
                               className="w-full border-b border-[#2a1d10] px-3 py-2 text-left text-sm text-[#d6c3a1] transition last:border-b-0 hover:bg-[#1a1208] hover:text-[#f6e8cb]"
                               onClick={() => {
+                                skipNextAuctionSearchRef.current = true;
                                 setSelectedAuctionGameId(game.catalogGameId);
                                 setAuctionSearchQuery(game.title);
                               }}
