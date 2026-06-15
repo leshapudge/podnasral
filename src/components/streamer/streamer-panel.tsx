@@ -50,7 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
   AUCTIONING: "Аукцион",
   AWAITING_DIFFICULTY: "Выбор сложности",
   PLAYING: "В игре",
-  PAUSED: "Пауза",
+  PAUSED: "Оффлайн",
   COMPLETED: "Игра пройдена",
   DROPPED: "Дроп",
   CASINO: "Слот наград",

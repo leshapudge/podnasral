@@ -1,17 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { McPageShell } from "@/components/landing/mc-page-shell";
-import { api, type DonationRequestData, type GameSearchResult } from "@/lib/api/client";
+import {
+  api,
+  type AdminParticipantData,
+  type CatalogItemData,
+  type DonationRequestData,
+  type GameSearchResult,
+  type ParticipantDetail,
+} from "@/lib/api/client";
+
+const STATUS_LABELS: Record<string, string> = {
+  IDLE: "Между играми",
+  IN_AUCTION: "Аукцион",
+  PLAYING: "В игре",
+  PAUSED: "Оффлайн",
+};
+
+function participantLabel(participant: AdminParticipantData) {
+  return participant.user.twitchLogin ?? participant.user.name ?? participant.id;
+}
 
 export default function AdminPage() {
   const [pool, setPool] = useState<{ catalogGame: { title: string; mainStoryHours: number | null } }[]>([]);
-  const [participants, setParticipants] = useState<
-    { id: string; user: { twitchLogin: string | null; name: string | null } }[]
-  >([]);
+  const [participants, setParticipants] = useState<AdminParticipantData[]>([]);
+  const [participantDetail, setParticipantDetail] = useState<ParticipantDetail | null>(null);
+  const [itemCatalog, setItemCatalog] = useState<CatalogItemData[]>([]);
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState("");
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [donations, setDonations] = useState<DonationRequestData[]>([]);
+  const [pointsAmount, setPointsAmount] = useState("100");
+  const [pointsReason, setPointsReason] = useState("");
+  const [itemAmount, setItemAmount] = useState("1");
+  const [itemReason, setItemReason] = useState("");
+  const [loadingParticipantDetail, setLoadingParticipantDetail] = useState(false);
+  const [savingPoints, setSavingPoints] = useState(false);
+  const [savingInventory, setSavingInventory] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GameSearchResult[]>([]);
   const [rawgId, setRawgId] = useState("");
@@ -23,13 +49,52 @@ export default function AdminPage() {
   const [pseudoRawgId, setPseudoRawgId] = useState("");
   const [message, setMessage] = useState("");
 
+  const groupedInventory = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        slug: string;
+        name: string;
+        kind: string;
+        rarity: string;
+        quantity: number;
+      }
+    >();
+
+    for (const item of participantDetail?.inventory ?? []) {
+      const current = grouped.get(item.slug);
+      if (current) {
+        current.quantity += item.quantity;
+        continue;
+      }
+      grouped.set(item.slug, {
+        slug: item.slug,
+        name: item.name,
+        kind: item.kind,
+        rarity: item.rarity,
+        quantity: item.quantity,
+      });
+    }
+
+    return [...grouped.values()].sort((a, b) => {
+      if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+      return a.name.localeCompare(b.name, "ru");
+    });
+  }, [participantDetail]);
+
+  const selectedCatalogItem = useMemo(
+    () => itemCatalog.find((item) => item.id === selectedItemId) ?? null,
+    [itemCatalog, selectedItemId],
+  );
+
   async function load() {
     try {
-      const [poolData, partData, statsData, donationsData] = await Promise.all([
+      const [poolData, partData, statsData, donationsData, itemCatalogData] = await Promise.all([
         api.admin.getPool(),
         api.admin.listParticipants(),
         api.admin.stats(),
         api.getDonationRequests(40),
+        api.getItemCatalog(),
       ]);
       setPool(poolData as typeof pool);
       setParticipants(partData);
@@ -38,7 +103,10 @@ export default function AdminPage() {
       );
       setStats(statsData);
       setDonations(donationsData.requests);
-      setMessage("");
+      setItemCatalog(itemCatalogData);
+      setSelectedItemId((prev) =>
+        prev && itemCatalogData.some((item) => item.id === prev) ? prev : (itemCatalogData[0]?.id ?? ""),
+      );
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Нужен вход как ADMIN");
     }
@@ -47,6 +115,46 @@ export default function AdminPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadParticipant() {
+      if (!selectedParticipantId) {
+        setParticipantDetail(null);
+        return;
+      }
+      setLoadingParticipantDetail(true);
+      try {
+        const detail = await api.getParticipant(selectedParticipantId);
+        if (!cancelled) setParticipantDetail(detail);
+      } catch (e) {
+        if (!cancelled) {
+          setParticipantDetail(null);
+          setMessage(e instanceof Error ? e.message : "Не удалось загрузить данные участника");
+        }
+      } finally {
+        if (!cancelled) setLoadingParticipantDetail(false);
+      }
+    }
+
+    void loadParticipant();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedParticipantId]);
+
+  async function refreshParticipantDetail() {
+    if (!selectedParticipantId) {
+      setParticipantDetail(null);
+      return;
+    }
+    setLoadingParticipantDetail(true);
+    try {
+      setParticipantDetail(await api.getParticipant(selectedParticipantId));
+    } finally {
+      setLoadingParticipantDetail(false);
+    }
+  }
 
   async function searchGames() {
     if (searchQuery.length < 2) return;
@@ -66,6 +174,97 @@ export default function AdminPage() {
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Error");
     }
+  }
+
+  async function adjustPoints(direction: "ADD" | "REMOVE") {
+    const amount = Number(pointsAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Некорректное количество очков");
+      return;
+    }
+    if (!selectedParticipantId) {
+      setMessage("Сначала выбери участника");
+      return;
+    }
+
+    const delta = direction === "ADD" ? amount : -amount;
+    setSavingPoints(true);
+    try {
+      const result = await api.admin.adjustPoints({
+        participantId: selectedParticipantId,
+        delta,
+        reason: pointsReason.trim() || undefined,
+      });
+      setMessage(
+        `${direction === "ADD" ? "Добавлено" : "Списано"} ${amount} очков. Теперь: ${result.totalPoints}`,
+      );
+      await Promise.all([load(), refreshParticipantDetail()]);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Не удалось изменить очки");
+    } finally {
+      setSavingPoints(false);
+    }
+  }
+
+  async function adjustInventory(delta: number, itemDefinitionId?: string, itemSlug?: string) {
+    const amount = Math.abs(delta);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Некорректное количество предметов");
+      return;
+    }
+    if (!selectedParticipantId) {
+      setMessage("Сначала выбери участника");
+      return;
+    }
+    if (!itemDefinitionId && !itemSlug) {
+      setMessage("Выбери предмет");
+      return;
+    }
+
+    setSavingInventory(true);
+    try {
+      const result = await api.admin.adjustInventory(selectedParticipantId, {
+        delta,
+        reason: itemReason.trim() || undefined,
+        itemDefinitionId,
+        itemSlug,
+      });
+      setMessage(
+        `${delta > 0 ? "Выдано" : "Списано"} ${amount} "${result.item.name}". Остаток: ${result.totalQuantity}`,
+      );
+      await refreshParticipantDetail();
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Не удалось изменить инвентарь");
+    } finally {
+      setSavingInventory(false);
+    }
+  }
+
+  async function grantSelectedItem() {
+    const amount = Number(itemAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Некорректное количество предметов");
+      return;
+    }
+    if (!selectedCatalogItem) {
+      setMessage("Выбери предмет из каталога");
+      return;
+    }
+    await adjustInventory(amount, selectedCatalogItem.id);
+  }
+
+  async function takeSelectedItem() {
+    const amount = Number(itemAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Некорректное количество предметов");
+      return;
+    }
+    if (!selectedCatalogItem) {
+      setMessage("Выбери предмет из каталога");
+      return;
+    }
+    await adjustInventory(-amount, selectedCatalogItem.id);
   }
 
   async function createPseudoDonation() {
@@ -120,6 +319,212 @@ export default function AdminPage() {
           </div>
         </section>
       )}
+
+      <section className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-6">
+        <h2 className="mb-4 font-display text-sm uppercase tracking-widest text-[#a89070]">
+          Менеджмент участников
+        </h2>
+        <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+            {participants.map((participant) => {
+              const isActive = participant.id === selectedParticipantId;
+              const streamerStatus = STATUS_LABELS[participant.status] ?? participant.status;
+              const gameTitle = participant.currentGameTitle?.trim();
+              return (
+                <button
+                  key={participant.id}
+                  type="button"
+                  onClick={() => setSelectedParticipantId(participant.id)}
+                  className={`w-full rounded border px-3 py-2 text-left transition ${
+                    isActive
+                      ? "border-hypixel-gold bg-[#2f2412]/80 text-hypixel-gold"
+                      : "border-[#2a1d10] bg-[#120d07]/70 text-[#e8d5b0] hover:border-[#6a5637]"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{participantLabel(participant)}</div>
+                  <div className="text-[11px] text-[#c7b18f]">
+                    {participant.totalPoints} очков
+                    {" • "}
+                    {streamerStatus}
+                    {gameTitle ? ` • ${gameTitle}` : ""}
+                  </div>
+                </button>
+              );
+            })}
+            {participants.length === 0 ? (
+              <div className="rounded border border-dashed border-[#3a2a16] p-3 text-xs text-[#a89070]">
+                Участники не найдены.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-4">
+            {selectedParticipantId && participantDetail ? (
+              <>
+                <div className="rounded border border-[#2a1d10] bg-[#120d07]/80 p-4">
+                  <div className="text-sm text-[#a89070]">Выбранный участник</div>
+                  <div className="font-display text-lg text-hypixel-gold">
+                    {participantDetail.twitchLogin ?? participantDetail.nickname}
+                  </div>
+                  <div className="mt-1 text-xs text-[#c7b18f]">
+                    Статус: {STATUS_LABELS[participantDetail.status] ?? participantDetail.status}
+                    {" • "}
+                    Очки: {participantDetail.totalPoints}
+                  </div>
+                  {participantDetail.currentGame?.title ? (
+                    <div className="text-xs text-[#9e8a6b]">
+                      Текущая игра: {participantDetail.currentGame.title}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded border border-[#2a1d10] bg-[#120d07]/80 p-4">
+                  <h3 className="mb-3 text-xs uppercase tracking-wider text-[#a89070]">Очки</h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={pointsAmount}
+                      onChange={(e) => setPointsAmount(e.target.value)}
+                      placeholder="Количество"
+                      className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
+                    />
+                    <input
+                      type="text"
+                      value={pointsReason}
+                      onChange={(e) => setPointsReason(e.target.value)}
+                      placeholder="Причина (необязательно)"
+                      className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="mc-os-btn px-4 py-2 text-xs"
+                      onClick={() => adjustPoints("ADD")}
+                      disabled={savingPoints}
+                    >
+                      + Добавить очки
+                    </button>
+                    <button
+                      type="button"
+                      className="mc-os-btn px-4 py-2 text-xs"
+                      onClick={() => adjustPoints("REMOVE")}
+                      disabled={savingPoints}
+                    >
+                      - Списать очки
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded border border-[#2a1d10] bg-[#120d07]/80 p-4">
+                  <h3 className="mb-3 text-xs uppercase tracking-wider text-[#a89070]">Предметы</h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      value={selectedItemId}
+                      onChange={(e) => setSelectedItemId(e.target.value)}
+                      className="sm:col-span-2 border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
+                    >
+                      {itemCatalog.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.rarity} / {item.kind})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      value={itemAmount}
+                      onChange={(e) => setItemAmount(e.target.value)}
+                      placeholder="Количество"
+                      className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
+                    />
+                    <input
+                      type="text"
+                      value={itemReason}
+                      onChange={(e) => setItemReason(e.target.value)}
+                      placeholder="Причина (необязательно)"
+                      className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="mc-os-btn px-4 py-2 text-xs"
+                      onClick={grantSelectedItem}
+                      disabled={savingInventory || !selectedCatalogItem}
+                    >
+                      Выдать предмет
+                    </button>
+                    <button
+                      type="button"
+                      className="mc-os-btn px-4 py-2 text-xs"
+                      onClick={takeSelectedItem}
+                      disabled={savingInventory || !selectedCatalogItem}
+                    >
+                      Забрать предмет
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded border border-[#2a1d10] bg-[#120d07]/80 p-4">
+                  <h3 className="mb-3 text-xs uppercase tracking-wider text-[#a89070]">
+                    Инвентарь участника ({groupedInventory.length})
+                  </h3>
+                  <ul className="max-h-64 space-y-2 overflow-y-auto pr-1 text-sm">
+                    {groupedInventory.map((item) => (
+                      <li
+                        key={item.slug}
+                        className="rounded border border-[#2a1d10] px-3 py-2 text-[#d6c3a1]"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-semibold">{item.name}</div>
+                            <div className="text-xs text-[#9e8a6b]">
+                              {item.slug} • {item.rarity} • {item.kind}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-[#a89070]">Количество</div>
+                            <div className="font-display text-lg text-hypixel-gold">{item.quantity}</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            type="button"
+                            className="mc-os-btn px-3 py-1 text-[10px]"
+                            disabled={savingInventory}
+                            onClick={() => adjustInventory(-1, undefined, item.slug)}
+                          >
+                            Забрать 1
+                          </button>
+                          <button
+                            type="button"
+                            className="mc-os-btn px-3 py-1 text-[10px]"
+                            disabled={savingInventory}
+                            onClick={() => adjustInventory(-item.quantity, undefined, item.slug)}
+                          >
+                            Забрать все
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                    {groupedInventory.length === 0 ? (
+                      <li className="rounded border border-dashed border-[#3a2a16] p-3 text-xs text-[#a89070]">
+                        Инвентарь пуст.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="rounded border border-dashed border-[#3a2a16] p-4 text-sm text-[#a89070]">
+                {loadingParticipantDetail ? "Загружаем данные участника..." : "Выбери участника слева."}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-widest text-[#a89070]">
@@ -252,17 +657,6 @@ export default function AdminPage() {
               {p.catalogGame.title}
               {p.catalogGame.mainStoryHours != null && ` (${p.catalogGame.mainStoryHours}ч)`}
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-6">
-        <h2 className="mb-4 font-display text-sm uppercase tracking-widest text-[#a89070]">
-          Участники ({participants.length})
-        </h2>
-        <ul className="text-sm space-y-1">
-          {participants.map((p) => (
-            <li key={p.id}>{p.user.twitchLogin ?? p.user.name ?? p.id}</li>
           ))}
         </ul>
       </section>

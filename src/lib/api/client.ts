@@ -388,6 +388,30 @@ export interface DonationFeedData {
   requests: DonationRequestData[];
 }
 
+export interface AdminParticipantData {
+  id: string;
+  totalPoints: number;
+  status: string;
+  isLive: boolean;
+  currentGameTitle: string | null;
+  user: {
+    twitchLogin: string | null;
+    name: string | null;
+  };
+}
+
+export interface AdminInventoryAdjustResult {
+  participantId: string;
+  delta: number;
+  item: {
+    id: string;
+    slug: string;
+    name: string;
+    kind: string;
+  };
+  totalQuantity: number;
+}
+
 export interface AuctionSelectionOptionsData {
   auctionId: string;
   status: "PREPARING" | "RUNNING";
@@ -556,7 +580,22 @@ export const api = {
         body: JSON.stringify({ rawgId, weight }),
       }),
     syncHltb: () => request(`${API}/admin/games/sync-hltb`, { method: "POST" }),
-    listParticipants: () => request<{ id: string; user: { twitchLogin: string | null; name: string | null } }[]>(`${API}/participants`),
+    listParticipants: () => request<AdminParticipantData[]>(`${API}/admin/participants`),
+    adjustPoints: (payload: { participantId: string; delta: number; reason?: string }) =>
+      request<{ id: string; totalPoints: number }>(`${API}/admin/points/adjust`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    adjustInventory: (participantId: string, payload: {
+      delta: number;
+      reason?: string;
+      itemDefinitionId?: string;
+      itemSlug?: string;
+    }) =>
+      request<AdminInventoryAdjustResult>(`${API}/admin/participants/${participantId}/items`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
     createPseudoDonation: (payload: {
       participantId: string;
       donorName: string;

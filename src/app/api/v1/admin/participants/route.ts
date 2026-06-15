@@ -9,10 +9,27 @@ export async function GET() {
     const event = await getActiveEvent();
     const participants = await prisma.participant.findMany({
       where: { eventId: event.id },
-      include: { user: true },
+      select: {
+        id: true,
+        totalPoints: true,
+        status: true,
+        isLive: true,
+        currentGameTitle: true,
+        user: {
+          select: {
+            twitchLogin: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { displayOrder: "asc" },
     });
-    return Response.json({ participants });
+    return Response.json(
+      participants.map((participant) => ({
+        ...participant,
+        isLive: participant.isLive && participant.status !== "PAUSED",
+      })),
+    );
   } catch (e) {
     return jsonError(e);
   }
