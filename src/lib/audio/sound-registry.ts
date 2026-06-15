@@ -12,7 +12,7 @@ export const SOUND_REGISTRY: Record<SoundId, SoundDefinition> = {
     id: "ui.click",
     path: "/audio/ui/click.ogg",
     category: "ui",
-    volume: 0.08,
+    volume: 0.35,
     fallback: "uiClickConfirm",
   },
   "ui.pageOpen": {

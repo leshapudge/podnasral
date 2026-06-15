@@ -328,6 +328,30 @@ export interface GameSearchResult {
   coverImage: string | null;
 }
 
+export interface AuctionGameSearchData {
+  auctionId: string;
+  status: "PREPARING" | "RUNNING";
+  canSelectGenre: boolean;
+  forcedGenres: string[];
+  genreRestrictionApplied: boolean;
+  genreDataReady: boolean;
+  availableGenres: string[];
+  games: {
+    catalogGameId: string;
+    rawgId: number;
+    title: string;
+    coverImage: string | null;
+    mainStoryHours: number | null;
+    mainExtraHours: number | null;
+    completionistHours: number | null;
+    projectedBaseScore: number;
+    genres: string[];
+    releaseDate: string | null;
+    rating: number | null;
+    metacritic: number | null;
+  }[];
+}
+
 export interface DonationRequestData {
   id: string;
   source: "DONATIONALERTS" | "ADMIN";
@@ -435,6 +459,10 @@ export const api = {
       method: "POST",
       },
     ),
+  searchAuctionGames: (auctionId: string, q: string) =>
+    request<AuctionGameSearchData>(
+      `${API}/auctions/${auctionId}/games/search?q=${encodeURIComponent(q)}`,
+    ),
   getAuctionSelectionOptions: (auctionId: string) =>
     request<AuctionSelectionOptionsData>(`${API}/auctions/${auctionId}/selection-options`),
   resolveAuctionFromDonations: (
@@ -442,7 +470,7 @@ export const api = {
     catalogGameId: string,
     selectedGenre?: string | null,
   ) =>
-    request<{ auction: { id: string; status: string } }>(
+    request<{ auction: { id: string; status: string }; session?: SessionData; timeline?: unknown[] }>(
       `${API}/auctions/${auctionId}/resolve-donations`,
       {
         method: "POST",

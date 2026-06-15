@@ -1,5 +1,5 @@
 /** Участники ивента — единый источник для seed и документации. */
-export const EVENT_START_ISO = "2026-06-25T09:00:00.000Z";
+export const EVENT_START_ISO = "2026-06-15T09:00:00.000Z";
 export const EVENT_DURATION_DAYS = 14;
 
 export interface EventRosterMember {

@@ -4,7 +4,11 @@ import { getActiveEvent } from "@/lib/event/event.service";
 import { parseEventConfig } from "@/lib/event/config";
 import { logActivity } from "@/lib/activity/activity.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
-import { getRawgGameByIdCached } from "@/lib/catalog/rawg.service";
+import {
+  getRawgGameByIdCached,
+  searchRawgGamesCached,
+} from "@/lib/catalog/rawg.service";
+import { syncCatalogGameFromRawg } from "@/lib/catalog/catalog.service";
 import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 import { toJson } from "@/lib/utils/json";
 import { buildModifiersSnapshot } from "@/lib/casino/modifiers";
@@ -317,6 +321,132 @@ export type AuctionSelectionOption = {
   genres: string[];
 };
 
+export type AuctionGameSearchResult = {
+  catalogGameId: string;
+  rawgId: number;
+  title: string;
+  coverImage: string | null;
+  mainStoryHours: number | null;
+  mainExtraHours: number | null;
+  completionistHours: number | null;
+  projectedBaseScore: number;
+  genres: string[];
+  releaseDate: string | null;
+  rating: number | null;
+  metacritic: number | null;
+};
+
+export async function searchAuctionGames(
+  auctionId: string,
+  participantId: string,
+  query: string,
+) {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) {
+    throw badRequest("Search query must be at least 2 characters");
+  }
+
+  const auction = await prisma.auctionRun.findUnique({
+    where: { id: auctionId },
+    select: {
+      id: true,
+      participantId: true,
+      status: true,
+      modifiersJson: true,
+    },
+  });
+  if (!auction || auction.participantId !== participantId) throw notFound("Auction");
+  if (auction.status !== "RUNNING") throw badRequest("Auction is not running");
+
+  const event = await getActiveEvent();
+  const config = parseEventConfig(event.config);
+  const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
+  const genreRules = getAuctionGenreRules(modifiers);
+  const needsGenres = genreRules.canSelectGenre || genreRules.forcedGenres.length > 0;
+
+  const rawgResults = await searchRawgGamesCached(normalizedQuery);
+  const rawgTop = rawgResults.slice(0, 10);
+  const rawgIds = rawgTop.map((game) => game.id);
+
+  const existingCatalog = await prisma.catalogGame.findMany({
+    where: { rawgId: { in: rawgIds } },
+    select: {
+      id: true,
+      rawgId: true,
+      title: true,
+      coverImage: true,
+      mainStoryHours: true,
+      mainExtraHours: true,
+      completionistHours: true,
+      hltbSyncedAt: true,
+    },
+  });
+  const existingByRawgId = new Map(existingCatalog.map((game) => [game.rawgId, game]));
+
+  const withCatalog = await Promise.all(
+    rawgTop.map(async (rawgGame) => {
+      let catalog = existingByRawgId.get(rawgGame.id) ?? null;
+      if (!catalog || !catalog.mainStoryHours || !catalog.hltbSyncedAt) {
+        catalog = await syncCatalogGameFromRawg(rawgGame.id).catch(() => catalog);
+      }
+      if (!catalog) return null;
+
+      const genres = (rawgGame.genres ?? [])
+        .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
+        .filter(Boolean);
+
+      return {
+        catalogGameId: catalog.id,
+        rawgId: rawgGame.id,
+        title: catalog.title,
+        coverImage: catalog.coverImage ?? rawgGame.background_image ?? null,
+        mainStoryHours: catalog.mainStoryHours,
+        mainExtraHours: catalog.mainExtraHours,
+        completionistHours: catalog.completionistHours,
+        projectedBaseScore: Math.round((catalog.mainStoryHours ?? 10) * config.pointsPerHour),
+        genres: [...new Set(genres)],
+        releaseDate: rawgGame.released ?? null,
+        rating: rawgGame.rating ?? null,
+        metacritic: rawgGame.metacritic ?? null,
+      } satisfies AuctionGameSearchResult;
+    }),
+  );
+
+  const gamesWithGenres = withCatalog.filter(
+    (game): game is AuctionGameSearchResult => game !== null,
+  );
+
+  let genreRestrictionApplied = false;
+  let games = gamesWithGenres;
+  if (genreRules.forcedGenres.length > 0) {
+    const hasGenreData = gamesWithGenres.some((game) => game.genres.length > 0);
+    if (hasGenreData) {
+      const filtered = gamesWithGenres.filter((game) =>
+        hasGenreMatch(game.genres, genreRules.forcedGenres),
+      );
+      if (filtered.length > 0) {
+        games = filtered;
+        genreRestrictionApplied = true;
+      }
+    }
+  }
+
+  const availableGenres = [...new Set(games.flatMap((game) => game.genres))].sort((a, b) =>
+    a.localeCompare(b, "en"),
+  );
+
+  return {
+    auctionId: auction.id,
+    status: auction.status,
+    canSelectGenre: genreRules.canSelectGenre,
+    forcedGenres: genreRules.forcedGenres,
+    genreRestrictionApplied,
+    genreDataReady: !needsGenres || gamesWithGenres.some((game) => game.genres.length > 0),
+    availableGenres,
+    games,
+  };
+}
+
 export async function getAuctionSelectionOptions(auctionId: string, participantId: string) {
   const auction = await prisma.auctionRun.findUnique({
     where: { id: auctionId },
@@ -589,75 +719,97 @@ export async function resolveAuctionFromDonations(
 
   const auction = await prisma.auctionRun.findUnique({
     where: { id: auctionId },
-    select: { id: true, participantId: true, status: true },
+    select: { id: true, participantId: true, status: true, modifiersJson: true },
   });
   if (!auction || auction.participantId !== participantId) throw notFound("Auction");
   if (auction.status !== "RUNNING") throw badRequest("Auction is not running");
 
-  const options = await getAuctionSelectionOptions(auctionId, participantId);
-  const selected = options.games.find((g) => g.catalogGameId === catalogGameId);
-  if (!selected) throw badRequest("Selected game is not eligible");
+  const selected = await prisma.catalogGame.findUnique({
+    where: { id: catalogGameId },
+    select: {
+      id: true,
+      rawgId: true,
+      title: true,
+      coverImage: true,
+      mainStoryHours: true,
+      mainExtraHours: true,
+      completionistHours: true,
+    },
+  });
+  if (!selected) throw badRequest("Selected game not found");
+
+  const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
+  const genreRules = getAuctionGenreRules(modifiers);
+  const needsGenres = genreRules.canSelectGenre || genreRules.forcedGenres.length > 0;
   const normalizedGenre = selectedGenre ? normalizeGenreSlug(selectedGenre) : null;
+  const rawg =
+    needsGenres && selected.rawgId
+      ? await getRawgGameByIdCached(selected.rawgId).catch(() => null)
+      : null;
+  const selectedGenres = (rawg?.genres ?? [])
+    .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
+    .filter(Boolean);
+  const genreDataReady = !needsGenres || selectedGenres.length > 0;
 
   if (
-    options.canSelectGenre &&
-    options.genreDataReady &&
-    options.forcedGenres.length === 0 &&
+    genreRules.canSelectGenre &&
+    genreDataReady &&
+    genreRules.forcedGenres.length === 0 &&
     !normalizedGenre
   ) {
     throw badRequest("Выберите жанр для завершения аукциона");
   }
-  if (options.genreDataReady && normalizedGenre && !selected.genres.includes(normalizedGenre)) {
+  if (genreDataReady && normalizedGenre && !selectedGenres.includes(normalizedGenre)) {
     throw badRequest("Выбранная игра не относится к выбранному жанру");
   }
   if (
-    options.genreRestrictionApplied &&
-    options.forcedGenres.length > 0 &&
-    !hasGenreMatch(selected.genres, options.forcedGenres)
+    genreDataReady &&
+    genreRules.forcedGenres.length > 0 &&
+    !hasGenreMatch(selectedGenres, genreRules.forcedGenres)
   ) {
     throw badRequest("Эта игра не подходит под жанровое ограничение модификатора");
   }
-
-  const candidateIds = [
-    selected.catalogGameId,
-    ...options.games
-      .map((g) => g.catalogGameId)
-      .filter((id) => id !== selected.catalogGameId),
-  ];
-  const now = new Date();
 
   const claimed = await prisma.$transaction(async (tx) => {
     const updated = await tx.auctionRun.updateMany({
       where: { id: auctionId, status: "RUNNING" },
       data: {
         status: "PREPARING",
-        resolvedGameId: selected.catalogGameId,
-        candidateCount: candidateIds.length,
+        resolvedGameId: selected.id,
+        candidateCount: 1,
         resolvedAt: null,
       },
     });
     if (updated.count !== 1) return 0;
 
     await tx.auctionCandidate.deleteMany({ where: { auctionRunId: auctionId } });
-    for (const [orderIndex, gameId] of candidateIds.entries()) {
-      await tx.auctionCandidate.create({
-        data: {
-          auctionRunId: auctionId,
-          catalogGameId: gameId,
-          orderIndex,
-          eliminatedAt: gameId === selected.catalogGameId ? null : now,
-        },
-      });
-    }
+    await tx.auctionCandidate.create({
+      data: {
+        auctionRunId: auctionId,
+        catalogGameId: selected.id,
+        orderIndex: 0,
+        eliminatedAt: null,
+      },
+    });
 
     return updated.count;
   });
 
   if (claimed !== 1) throw conflict("Auction already resolved");
 
+  const started = await startAuction(auctionId, participantId);
+
   return {
-    auction: await getAuction(auctionId),
-    selectedGame: selected,
+    ...started,
+    selectedGame: {
+      catalogGameId: selected.id,
+      title: selected.title,
+      coverImage: selected.coverImage ?? null,
+      mainStoryHours: selected.mainStoryHours ?? 10,
+      mainExtraHours: selected.mainExtraHours,
+      completionistHours: selected.completionistHours,
+      genres: selectedGenres,
+    },
   };
 }
 
