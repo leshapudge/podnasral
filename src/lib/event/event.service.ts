@@ -2,23 +2,63 @@ import prisma from "@/lib/db/prisma";
 import { notFound } from "@/lib/api/errors";
 import { parseEventConfig } from "./config";
 import { getDaysUntilStart, isEventUpcoming } from "./event-timing";
+import { EVENT_DURATION_DAYS, EVENT_START_ISO } from "./event-roster";
 
-export async function getActiveEvent() {
-  const event = await prisma.event.findFirst({
-    where: { status: { in: ["ACTIVE", "UPCOMING"] } },
-    orderBy: { startsAt: "asc" },
+const SEED_EVENT_ID = "seed-event-1";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function buildSeedSchedule() {
+  const startsAt = new Date(EVENT_START_ISO);
+  const endsAt = new Date(startsAt.getTime() + EVENT_DURATION_DAYS * DAY_MS);
+  return { startsAt, endsAt };
+}
+
+async function normalizeSeedEventSchedule(event: {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: "UPCOMING" | "ACTIVE" | "ENDED";
+}) {
+  if (event.id !== SEED_EVENT_ID) return null;
+
+  const { startsAt, endsAt } = buildSeedSchedule();
+  const now = Date.now();
+  const desiredStatus =
+    now >= endsAt.getTime() ? "ENDED" : now >= startsAt.getTime() ? "ACTIVE" : "UPCOMING";
+
+  const hasStartMismatch = event.startsAt.getTime() !== startsAt.getTime();
+  const hasEndMismatch = event.endsAt.getTime() !== endsAt.getTime();
+  const hasStatusMismatch = event.status !== desiredStatus;
+  if (!hasStartMismatch && !hasEndMismatch && !hasStatusMismatch) return null;
+
+  return prisma.event.update({
+    where: { id: event.id },
+    data: { startsAt, endsAt, status: desiredStatus },
     include: { boss: true },
   });
+}
+
+export async function getActiveEvent() {
+  const event = await getActiveEventOrNull();
   if (!event) throw notFound("Event");
   return event;
 }
 
 export async function getActiveEventOrNull() {
-  return prisma.event.findFirst({
+  const event = await prisma.event.findFirst({
     where: { status: { in: ["ACTIVE", "UPCOMING"] } },
     orderBy: { startsAt: "asc" },
     include: { boss: true },
   });
+  if (!event) return null;
+
+  const normalized = await normalizeSeedEventSchedule({
+    id: event.id,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    status: event.status,
+  });
+  return normalized ?? event;
 }
 
 export function getEventProgress(event: { startsAt: Date; endsAt: Date; status: string }) {
