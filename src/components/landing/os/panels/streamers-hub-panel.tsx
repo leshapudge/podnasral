@@ -28,12 +28,12 @@ import { cn } from "@/lib/utils";
 import { StarRatingDisplay } from "@/components/streamer/star-rating";
 
 const STATUS_LABELS: Record<string, string> = {
-  IDLE: "Участник",
+  IDLE: "Между играми",
   AUCTIONING: "Аукцион",
   AWAITING_DIFFICULTY: "Выбор сложности",
   PLAYING: "В игре",
   PAUSED: "Пауза",
-  COMPLETED: "Игра пройдена",
+  COMPLETED: "После игры",
   DROPPED: "Дроп",
   CASINO: "Казино",
 };
@@ -50,34 +50,38 @@ function getStreamerStatusText(
   eventUpcoming: boolean,
 ) {
   if (!streamer.registered) return "Ожидает входа";
-  if (eventUpcoming) return "Участник";
+  if (eventUpcoming) return "Ждёт старт";
   return STATUS_LABELS[streamer.status] ?? streamer.status;
 }
 
-function getStatusBadgeClass(
+function getStatusTextClass(
   streamer: StreamerRosterEntry,
   eventUpcoming: boolean,
 ) {
   if (!streamer.registered || eventUpcoming) {
-    return "border-[#3c3125] bg-[#1a1208]/60 text-[#a89070]";
+    return "text-[#a89070]";
   }
 
   switch (streamer.status) {
     case "PLAYING":
     case "PAUSED":
     case "AWAITING_DIFFICULTY":
-      return "border-primary/40 bg-primary/15 text-primary";
+      return "text-primary";
     case "AUCTIONING":
-      return "border-hypixel-gold/40 bg-hypixel-gold/10 text-hypixel-gold";
+      return "text-hypixel-gold";
     case "COMPLETED":
-      return "border-[#6bc1ff]/40 bg-[#6bc1ff]/10 text-[#9bd9ff]";
+      return "text-[#9bd9ff]";
     case "DROPPED":
-      return "border-mc-redstone/40 bg-mc-redstone/10 text-mc-redstone";
+      return "text-mc-redstone";
     case "CASINO":
-      return "border-mc-diamond/40 bg-mc-diamond/10 text-mc-diamond";
+      return "text-mc-diamond";
     default:
-      return "border-[#3c3125] bg-[#1a1208]/60 text-[#a89070]";
+      return "text-[#a89070]";
   }
+}
+
+function isGameStatus(status: string) {
+  return status === "PLAYING" || status === "PAUSED" || status === "AWAITING_DIFFICULTY";
 }
 
 interface StreamersHubPanelProps {
@@ -198,12 +202,6 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                           : "border-transparent bg-[#1a1208]/30 hover:border-[#1a1208] hover:bg-[#1a1208]/60",
                     )}
                   >
-                    <span
-                      className={cn(
-                        "mt-1 h-8 w-1 shrink-0 rounded-full",
-                        s.isLive ? "bg-primary" : "bg-[#5c4a32]",
-                      )}
-                    />
                     <div className="relative shrink-0">
                       <McAvatar
                         nickname={s.nickname}
@@ -220,29 +218,12 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[#e8d5b0]">{s.nickname}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "inline-flex rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-wide",
-                            s.isLive
-                              ? "border-primary/40 bg-primary/15 text-primary"
-                              : "border-[#3c3125] bg-[#1a1208]/60 text-[#8f7f67]",
-                          )}
-                        >
-                          {s.isLive ? "в эфире" : "оффлайн"}
-                        </span>
-                        <span
-                          className={cn(
-                            "inline-flex rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-wide",
-                            getStatusBadgeClass(s, eventUpcoming),
-                          )}
-                        >
-                          {statusText}
-                        </span>
-                      </div>
-                      {!eventUpcoming && s.currentGame && (
+                      <p className={cn("mt-1 text-[11px]", getStatusTextClass(s, eventUpcoming))}>
+                        {statusText}
+                      </p>
+                      {!eventUpcoming && isGameStatus(s.status) && s.currentGame && (
                         <>
-                          <p className="mt-1 truncate text-[11px] text-[#d6c3a1]">
+                          <p className="mt-0.5 truncate text-[11px] text-[#d6c3a1]">
                             {s.currentGame.title}
                           </p>
                           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-[#7a6a52]">

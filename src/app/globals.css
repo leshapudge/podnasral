@@ -18,6 +18,8 @@
 
 :root {
   --font-mc: Monocraft, ui-monospace, monospace;
+  --ui-btn-highlight: rgba(85, 197, 122, 0.26);
+  --ui-btn-highlight-strong: rgba(255, 214, 102, 0.32);
 }
 
 @theme {
@@ -85,6 +87,56 @@
   textarea,
   select {
     font-family: inherit;
+  }
+
+  :where(
+      button,
+      [role="button"],
+      [role="tab"],
+      .mc-os-btn,
+      a.mc-os-btn,
+      .mc-os-tab-btn,
+      .mc-os-start-menu-item,
+      .mc-os-window-btn
+    ) {
+    transition:
+      transform 0.08s ease,
+      box-shadow 0.16s ease,
+      filter 0.16s ease,
+      border-color 0.16s ease,
+      background-color 0.16s ease;
+  }
+
+  :where(
+      button,
+      [role="button"],
+      [role="tab"],
+      .mc-os-btn,
+      a.mc-os-btn,
+      .mc-os-tab-btn,
+      .mc-os-start-menu-item,
+      .mc-os-window-btn
+    ):not(:disabled):is(:hover, :focus-visible) {
+    box-shadow:
+      0 0 0 1px var(--ui-btn-highlight),
+      0 0 12px rgba(85, 197, 122, 0.16);
+    filter: brightness(1.035);
+  }
+
+  :where(
+      button,
+      [role="button"],
+      [role="tab"],
+      .mc-os-btn,
+      a.mc-os-btn,
+      .mc-os-tab-btn,
+      .mc-os-start-menu-item,
+      .mc-os-window-btn
+    ):not(:disabled):active {
+    transform: translateY(1px) scale(0.995);
+    box-shadow:
+      0 0 0 1px var(--ui-btn-highlight-strong),
+      0 0 8px rgba(255, 214, 102, 0.14);
   }
 }
 
