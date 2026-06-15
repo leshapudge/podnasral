@@ -40,10 +40,7 @@ export function StreamerCasinoModal({
   const [applyingBonus, setApplyingBonus] = useState(false);
   const [spinOutcome, setSpinOutcome] = useState<CasinoSpinResult | null>(null);
   const pendingRef = useRef<CasinoSpinResult | null>(null);
-
-  useEffect(() => {
-    setLocalSession(session);
-  }, [session]);
+  const spinLockRef = useRef(false);
 
   const {
     spinning,
@@ -56,6 +53,11 @@ export function StreamerCasinoModal({
     setResults,
     cancelSpin,
   } = useSlotAnimation();
+
+  useEffect(() => {
+    if (spinning || applyingBonus) return;
+    setLocalSession(session);
+  }, [session, spinning, applyingBonus]);
 
   const { spinsRemaining, spinsTotal, finished, manualBonusApplied, maxManualBonusSpins } =
     localSession.casino;
@@ -73,6 +75,7 @@ export function StreamerCasinoModal({
     }
     pendingRef.current = null;
     setSpinOutcome(null);
+    spinLockRef.current = false;
     finishAnimation();
   }, [finishAnimation, onSpinComplete, setResults]);
 
@@ -92,7 +95,8 @@ export function StreamerCasinoModal({
   }
 
   async function handleSpin() {
-    if (!canSpin || needsBonusStep) return;
+    if (!canSpin || needsBonusStep || spinLockRef.current) return;
+    spinLockRef.current = true;
     setToast(null);
     pendingRef.current = null;
     setSpinOutcome(null);
@@ -109,6 +113,7 @@ export function StreamerCasinoModal({
     } catch (e) {
       cancelSpin();
       setSpinOutcome(null);
+      spinLockRef.current = false;
       setToast(e instanceof Error ? e.message : "Ошибка");
       window.setTimeout(() => setToast(null), TOAST_MS);
     }

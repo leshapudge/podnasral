@@ -6,7 +6,9 @@ import { ensureEventParticipant } from "@/lib/participants/ensure-event-particip
 import { getTwitchIdentity } from "@/lib/auth/twitch-identity";
 import { syncTwitchUserProfile } from "@/lib/auth/sync-twitch-user";
 import { getInventory } from "@/lib/craft/craft.service";
+import { getPendingModifiersPreview } from "@/lib/modifiers/pending-modifiers";
 import { formatSessionPublic, getSession } from "@/lib/sessions/session.service";
+import { ensureParticipantWebhookKey } from "@/lib/donations/donationalerts-connection.service";
 
 export async function GET() {
   try {
@@ -37,6 +39,31 @@ export async function GET() {
       ? formatSessionPublic(await getSession(user.participant.currentSession.id))
       : null;
 
+    const pendingModifiers = user.participant
+      ? await getPendingModifiersPreview(user.participant.id)
+      : [];
+
+    const activeAuction = user.participant
+      ? await prisma.auctionRun.findFirst({
+          where: {
+            participantId: user.participant.id,
+            status: { in: ["PREPARING", "RUNNING"] },
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            status: true,
+            modifierUses: { select: { inventoryItemId: true } },
+          },
+        })
+      : null;
+
+    const donationAlerts = user.participant
+      ? {
+          webhookPath: `/api/integrations/donationalerts/${await ensureParticipantWebhookKey(user.participant.id)}`,
+        }
+      : null;
+
     return Response.json({
       user: {
         id: user.id,
@@ -64,6 +91,15 @@ export async function GET() {
         iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
       })),
       currentSession,
+      pendingModifiers,
+      activeAuction: activeAuction
+        ? {
+            id: activeAuction.id,
+            status: activeAuction.status,
+            autoAppliedModifierIds: activeAuction.modifierUses.map((u) => u.inventoryItemId),
+          }
+        : null,
+      donationAlerts,
     });
   } catch (e) {
     return jsonError(e);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAudioOptional } from "@/components/audio/audio-provider";
 import { resolveResourceSound } from "@/lib/audio";
 import { motion } from "framer-motion";
@@ -24,12 +24,15 @@ export function MinecraftInventory({ initialGrid, persist = false }: MinecraftIn
   const [grid, setGrid] = useState<InventoryGrid>(() => initialGrid ?? emptyGrid());
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialSignature = useMemo(
+    () => (initialGrid ? JSON.stringify(initialGrid) : ""),
+    [initialGrid],
+  );
 
   useEffect(() => {
-    if (initialGrid) {
-      setGrid(initialGrid);
-    }
-  }, [initialGrid]);
+    if (!initialGrid) return;
+    setGrid((prev) => (JSON.stringify(prev) === initialSignature ? prev : initialGrid));
+  }, [initialGrid, initialSignature]);
 
   useEffect(() => {
     audio?.emit("chest:open");

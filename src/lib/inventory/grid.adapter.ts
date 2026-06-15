@@ -18,6 +18,10 @@ export function inventoryGridFromMe(me: MeData): InventoryGrid {
   const grid = emptyGrid();
   me.inventory.forEach((item, index) => {
     if (index >= INVENTORY_SIZE) return;
+    const powerSum = Object.values(item.effects ?? {}).reduce<number>(
+      (a, b) => a + (typeof b === "number" ? b : 0),
+      0,
+    );
     const stack: InventoryStack = {
       templateId: item.slug,
       kind:
@@ -31,7 +35,7 @@ export function inventoryGridFromMe(me: MeData): InventoryGrid {
       rarity: mapRarity(item.rarity),
       quantity: item.quantity,
       maxStack: 64,
-      power: Object.values(item.effects ?? {}).reduce((a, b) => a + b, 0) || undefined,
+      power: powerSum > 0 ? powerSum : undefined,
     };
     grid[index] = stack;
   });

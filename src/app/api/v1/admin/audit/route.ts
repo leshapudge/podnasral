@@ -24,7 +24,13 @@ export async function GET(req: Request) {
         : [],
     ]);
 
-    return Response.json({ activityLogs, timerEvents });
+    return Response.json({
+      activityLogs,
+      timerEvents: timerEvents.map((t) => ({
+        ...t,
+        activePlayMs: Number(t.activePlayMs),
+      })),
+    });
   } catch (e) {
     return jsonError(e);
   }

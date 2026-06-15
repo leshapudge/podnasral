@@ -65,21 +65,36 @@ const REMOTE_TEXTURES = {
 };
 
 async function download(slug, url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${slug}: HTTP ${res.status} ${url}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(path.join(OUT, `${slug}.png`), buf);
+  const outFile = path.join(OUT, `${slug}.png`);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${slug}: HTTP ${res.status} ${url}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(outFile, buf);
+    return true;
+  } catch (error) {
+    if (fs.existsSync(outFile)) {
+      console.warn(`[icons:sync] keep ${slug}.png (${error instanceof Error ? error.message : "download failed"})`);
+      return false;
+    }
+    throw error;
+  }
 }
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  let ok = 0;
+  let updated = 0;
+  let kept = 0;
   for (const [slug, url] of Object.entries(REMOTE_TEXTURES)) {
-    await download(slug, url);
-    ok++;
-    console.log("✓", slug);
+    const changed = await download(slug, url);
+    if (changed) {
+      updated++;
+      console.log("✓", slug);
+    } else {
+      kept++;
+    }
   }
-  console.log(`Synced ${ok} icons → public/assets/mc/items/`);
+  console.log(`Synced icons → updated: ${updated}, kept: ${kept}`);
 }
 
 main().catch((e) => {

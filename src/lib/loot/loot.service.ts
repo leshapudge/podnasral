@@ -1,8 +1,9 @@
-import type { Difficulty, Rarity } from "@prisma/client";
+import type { Difficulty, Prisma, Rarity } from "@prisma/client";
 import type { EventConfig } from "@/lib/event/config";
 import type { CompetitionContext } from "@/lib/balance/catch-up";
 import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/score-calculator";
 import prisma from "@/lib/db/prisma";
+import { badRequest } from "@/lib/api/errors";
 
 const RARITIES: Rarity[] = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"];
 
@@ -57,10 +58,14 @@ export async function rollLoot(params: {
   seed: string;
   count?: number;
   competition?: CompetitionContext;
+  db?: Prisma.TransactionClient;
   /** Первый спин казино — чаще материал для верстака */
   preferMaterial?: boolean;
+  /** If provided, these item definitions cannot be rolled. */
+  excludeItemDefinitionIds?: string[];
 }) {
-  const items = await prisma.itemDefinition.findMany({
+  const db = params.db ?? prisma;
+  const items = await db.itemDefinition.findMany({
     where: { kind: { in: ["MODIFIER", "MATERIAL"] } },
   });
 
@@ -93,6 +98,8 @@ export async function rollLoot(params: {
     params.count ?? baseRolls + extra + pinata + longGameLoot + shortLoot + behindBonus;
 
   const drops = [];
+  const enforceUnique = params.excludeItemDefinitionIds !== undefined;
+  const blockedItemIds = new Set(params.excludeItemDefinitionIds ?? []);
 
   for (let i = 0; i < lootCount; i++) {
     const rarity = rollRarity(
@@ -110,11 +117,17 @@ export async function rollLoot(params: {
       if (materials.length > 0) pool = materials;
     }
 
-    const candidates = pool;
+    let candidates = pool;
+    if (enforceUnique) {
+      candidates = candidates.filter((it) => !blockedItemIds.has(it.id));
+      if (candidates.length === 0) {
+        throw badRequest("No unique loot bonuses remaining");
+      }
+    }
     const idx = Math.floor(seededRandom(`${params.seed}-item-${i}`)() * candidates.length);
     const item = candidates[idx];
 
-    const drop = await prisma.lootDrop.create({
+    const drop = await db.lootDrop.create({
       data: {
         gameSessionId: params.gameSessionId,
         itemDefinitionId: item.id,
@@ -123,7 +136,7 @@ export async function rollLoot(params: {
       include: { itemDefinition: true },
     });
 
-    await prisma.inventoryItem.create({
+    const inv = await db.inventoryItem.create({
       data: {
         participantId: params.participantId,
         itemDefinitionId: item.id,
@@ -132,7 +145,8 @@ export async function rollLoot(params: {
       },
     });
 
-    drops.push(drop);
+    drops.push({ drop, inventoryItemId: inv.id });
+    if (enforceUnique) blockedItemIds.add(item.id);
   }
 
   return drops;

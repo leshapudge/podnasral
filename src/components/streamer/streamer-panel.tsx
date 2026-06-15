@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Coins,
+  Eye,
+  EyeOff,
   Gamepad2,
   Hammer,
   Package,
   Pause,
   Play,
+  RefreshCw,
   Skull,
   Sparkles,
   Swords,
   Trophy,
+  Link2,
 } from "lucide-react";
 import { McPageShell } from "@/components/landing/mc-page-shell";
 import { McAvatar } from "@/components/landing/os/mc-avatar";
@@ -74,22 +78,43 @@ export function StreamerPanel() {
   const [me, setMe] = useState<MeData | null>(null);
   const [tab, setTab] = useState<StreamerTab>("game");
   const [auctionId, setAuctionId] = useState<string | null>(null);
+  const [auctionPhase, setAuctionPhase] = useState<"PREPARING" | "RUNNING" | null>(null);
   const [selectedModifiers, setSelectedModifiers] = useState<string[]>([]);
   const [auctionTimeline, setAuctionTimeline] = useState<
     { step: number; eliminatedGameId?: string; winnerGameId?: string }[]
   >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [showDonationWebhook, setShowDonationWebhook] = useState(false);
   const [recipes, setRecipes] = useState<CraftRecipeData[]>([]);
+  const refreshSeq = useRef(0);
 
   const refresh = useCallback(async () => {
+    const seq = ++refreshSeq.current;
     try {
       const data = await api.getMe();
+      if (seq !== refreshSeq.current) return;
       setMe(data);
+      setError(null);
+      if (data.activeAuction) {
+        setAuctionId(data.activeAuction.id);
+        setAuctionPhase(data.activeAuction.status);
+        setSelectedModifiers(data.activeAuction.autoAppliedModifierIds);
+      } else {
+        setAuctionId(null);
+        setAuctionPhase(null);
+        if (data.participant?.status !== "AUCTIONING") {
+          setSelectedModifiers([]);
+        }
+      }
     } catch (e) {
+      if (seq !== refreshSeq.current) return;
       if (e instanceof ApiClientError && e.status === 401) {
         window.location.href = "/login";
+        return;
       }
+      setError(e instanceof Error ? e.message : "Ошибка загрузки панели");
     }
   }, []);
 
@@ -104,6 +129,17 @@ export function StreamerPanel() {
   }, []);
 
   const counts = useMemo(() => (me ? inventoryCounts(me) : {}), [me]);
+  const inventoryGrid = useMemo(() => (me ? inventoryGridFromMe(me) : null), [me]);
+  const donationWebhookUrl = useMemo(() => {
+    if (!me?.donationAlerts?.webhookPath) return null;
+    if (typeof window === "undefined") return me.donationAlerts.webhookPath;
+    return `${window.location.origin}${me.donationAlerts.webhookPath}`;
+  }, [me?.donationAlerts?.webhookPath]);
+  const donationWebhookPreview = useMemo(() => {
+    if (!donationWebhookUrl) return null;
+    const tail = donationWebhookUrl.slice(-12);
+    return `Скрыто ••••••••••••${tail}`;
+  }, [donationWebhookUrl]);
 
   const prepModifiers = useMemo(() => {
     if (!me) return [];
@@ -128,6 +164,41 @@ export function StreamerPanel() {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function copyDonationWebhook() {
+    if (!donationWebhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(donationWebhookUrl);
+      setInfo("Webhook URL скопирован");
+    } catch {
+      setInfo("Не удалось скопировать URL");
+    }
+  }
+
+  async function rotateDonationWebhook() {
+    await runAction(async () => {
+      const next = await api.streamer.rotateDonationAlertsWebhook();
+      setMe((prev) =>
+        prev
+          ? {
+              ...prev,
+              donationAlerts: { webhookPath: next.webhookPath },
+            }
+          : prev,
+      );
+      setShowDonationWebhook(false);
+      setInfo("Сгенерирован новый webhook URL");
+    });
+  }
+
+  function openDonationAuctionPage(currentAuctionId: string) {
+    if (!me?.participant) return;
+    const aukUrl = `/auk?participantId=${encodeURIComponent(me.participant.id)}&auctionId=${encodeURIComponent(currentAuctionId)}`;
+    const popup = window.open(aukUrl, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      setInfo(`Аук запущен. Открой вручную: ${aukUrl}`);
     }
   }
 
@@ -168,6 +239,8 @@ export function StreamerPanel() {
   const session = me.currentSession;
   const status = me.participant.status;
   const modifiers = me.inventory.filter((i) => i.kind === "MODIFIER");
+  const pendingModifierIds = new Set(me.pendingModifiers?.map((m) => m.id) ?? []);
+  const optionalModifiers = modifiers.filter((m) => !pendingModifierIds.has(m.id));
   const craftEnabled = status === "IDLE";
 
   const tabs: { id: StreamerTab; label: string; icon: typeof Gamepad2 }[] = [
@@ -229,6 +302,59 @@ export function StreamerPanel() {
             {error}
           </div>
         )}
+        {info && (
+          <div className="rounded border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+            {info}
+          </div>
+        )}
+
+        {donationWebhookUrl && (
+          <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-4">
+            <OsSectionTitle className="mb-2">DonationAlerts</OsSectionTitle>
+            <p className="mb-2 text-xs text-[#7a6a52]">
+              Вставь этот URL в вебхук своего DonationAlerts. Донаты из него пойдут в твой аук.
+            </p>
+            <div className="rounded border border-[#2a2118] bg-[#0d0a08]/80 px-3 py-2 text-xs text-[#d6c3a1] break-all">
+              {showDonationWebhook ? donationWebhookUrl : donationWebhookPreview}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
+                onClick={() => setShowDonationWebhook((v) => !v)}
+              >
+                {showDonationWebhook ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Скрыть URL
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" />
+                    Показать URL
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
+                onClick={() => void copyDonationWebhook()}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Копировать URL
+              </button>
+              <button
+                type="button"
+                className="mc-os-btn inline-flex items-center gap-2 px-3 py-2 text-[10px]"
+                disabled={loading}
+                onClick={() => void rotateDonationWebhook()}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Сменить webhook ключ
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Табы */}
         <nav className="flex gap-1 rounded-lg border border-[#1a1208] bg-[#0d0a08]/80 p-1">
@@ -264,6 +390,14 @@ export function StreamerPanel() {
                   Запустите аукцион, чтобы выбрать следующую игру. Модификаторы из инвентаря
                   усилят забег.
                 </p>
+                {me.pendingModifiers.length > 0 && (
+                  <div className="mb-4">
+                    <ActiveModifiersStrip
+                      modifiers={me.pendingModifiers}
+                      hint="Повесятся на следующий забег автоматически"
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
                   className="mc-os-btn inline-flex items-center gap-2 px-6 py-2.5 text-xs"
@@ -272,7 +406,8 @@ export function StreamerPanel() {
                     runAction(async () => {
                       const auction = await api.createAuction();
                       setAuctionId(auction.id);
-                      setSelectedModifiers([]);
+                      setAuctionPhase("PREPARING");
+                      setSelectedModifiers(auction.autoAppliedModifierIds);
                     })
                   }
                 >
@@ -282,12 +417,12 @@ export function StreamerPanel() {
               </section>
             )}
 
-            {auctionId && (
+            {auctionId && auctionPhase !== "RUNNING" && (
               <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
                 <OsSectionTitle>Подготовка аукциона</OsSectionTitle>
                 <p className="mb-3 text-xs text-[#7a6a52]">
                   Выберите до {MAX_MODIFIERS_PER_AUCTION} модификаторов до старта, затем запустите
-                  аукцион
+                  донатный аукцион
                 </p>
                 <ActiveModifiersStrip
                   modifiers={prepModifiers}
@@ -296,7 +431,7 @@ export function StreamerPanel() {
                   hint="Списываются при старте аукциона"
                 />
                 <div className="mb-4 flex flex-wrap gap-2">
-                  {modifiers
+                  {optionalModifiers
                     .filter((m) => !selectedModifiers.includes(m.id))
                     .map((m) => (
                       <button
@@ -324,7 +459,7 @@ export function StreamerPanel() {
                         </span>
                       </button>
                     ))}
-                  {modifiers.length === 0 && (
+                  {optionalModifiers.length === 0 && me.pendingModifiers.length === 0 && (
                     <p className="text-xs text-[#7a6a52]">Нет модификаторов — можно без них</p>
                   )}
                 </div>
@@ -334,14 +469,48 @@ export function StreamerPanel() {
                   disabled={loading}
                   onClick={() =>
                     runAction(async () => {
-                      const result = await api.startAuction(auctionId);
-                      setAuctionTimeline((result.timeline as typeof auctionTimeline) ?? []);
-                      setAuctionId(null);
+                      await api.startAuction(auctionId);
+                      setAuctionPhase("RUNNING");
+                      openDonationAuctionPage(auctionId);
                     })
                   }
                 >
-                  Запустить аукцион!
+                  Запустить донатный аук!
                 </button>
+              </section>
+            )}
+
+            {auctionId && auctionPhase === "RUNNING" && (
+              <section className="rounded-lg border border-primary/30 bg-primary/5 p-5">
+                <OsSectionTitle>Донатный аукцион запущен</OsSectionTitle>
+                <p className="mb-4 text-sm text-[#a89070]">
+                  Игра теперь выбирается по донатам. Открой страницу аукциона и после окончания
+                  донатов заверши выбор победителя.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="mc-os-btn px-4 py-2 text-xs"
+                    onClick={() => openDonationAuctionPage(auctionId)}
+                  >
+                    Открыть сайт аука
+                  </button>
+                  <button
+                    type="button"
+                    className="mc-os-btn px-4 py-2 text-xs"
+                    disabled={loading}
+                    onClick={() =>
+                      runAction(async () => {
+                        const result = await api.resolveAuctionFromDonations(auctionId);
+                        setAuctionTimeline((result.timeline as typeof auctionTimeline) ?? []);
+                        setAuctionId(null);
+                        setAuctionPhase(null);
+                      })
+                    }
+                  >
+                    Завершить по донатам
+                  </button>
+                </div>
               </section>
             )}
 
@@ -517,7 +686,7 @@ export function StreamerPanel() {
             <p className="mb-4 text-center text-xs text-[#7a6a52]">
               Модификаторы для аукциона · материалы для верстака
             </p>
-            <MinecraftInventory initialGrid={inventoryGridFromMe(me)} persist={false} />
+            <MinecraftInventory initialGrid={inventoryGrid} persist={false} />
           </motion.div>
         )}
 

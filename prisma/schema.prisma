@@ -90,6 +90,17 @@ enum ActivityLogType {
   POINTS_ADJUSTED
 }
 
+enum DonationRequestSource {
+  DONATIONALERTS
+  ADMIN
+}
+
+enum DonationRequestStatus {
+  RECEIVED
+  ADDED
+  FAILED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String?   @unique
@@ -170,6 +181,7 @@ model Event {
   gamePool      EventGamePool[]
   boss          Boss?
   activityLogs  ActivityLog[]
+  donationRequests DonationRequest[]
 
   @@map("events")
 }
@@ -186,6 +198,8 @@ model Participant {
   lastLiveAt       DateTime?         @map("last_live_at")
   currentGameTitle String?           @map("current_game_title")
   gameProgressPct  Float?            @map("game_progress_pct")
+  pendingModifierItemIds Json         @default("[]") @map("pending_modifier_item_ids")
+  donationAlertsWebhookKey String?    @unique @map("donationalerts_webhook_key")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -197,6 +211,7 @@ model Participant {
   gameSessions   GameSession[]   @relation("ParticipantSessions")
   inventoryItems InventoryItem[]
   bossDamages    BossDamage[]
+  donationRequests DonationRequest[]
 
   @@index([eventId, totalPoints(sort: Desc)])
   @@map("participants")
@@ -221,6 +236,7 @@ model CatalogGame {
   auctionCandidates AuctionCandidate[]
   gameSessions     GameSession[]
   resolvedAuctions AuctionRun[]       @relation("ResolvedGame")
+  donationRequests DonationRequest[]
 
   @@index([title])
   @@map("catalog_games")
@@ -283,6 +299,7 @@ model ModifierConsumption {
   auctionRun    AuctionRun    @relation(fields: [auctionRunId], references: [id], onDelete: Cascade)
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
+  @@unique([inventoryItemId])
   @@map("modifier_consumptions")
 }
 
@@ -454,4 +471,33 @@ model ActivityLog {
 
   @@index([eventId, createdAt(sort: Desc)])
   @@map("activity_logs")
+}
+
+model DonationRequest {
+  id            String                @id @default(cuid())
+  eventId       String                @map("event_id")
+  participantId String?               @map("participant_id")
+  source        DonationRequestSource
+  status        DonationRequestStatus @default(RECEIVED)
+  donorName     String                @map("donor_name")
+  amount        Decimal               @db.Decimal(10, 2)
+  currency      String                @default("RUB")
+  message       String?               @db.Text
+  gameQuery     String?               @map("game_query")
+  rawgId        Int?                  @map("rawg_id")
+  catalogGameId String?               @map("catalog_game_id")
+  externalId    String?               @map("external_id")
+  errorMessage  String?               @map("error_message")
+  meta          Json                  @default("{}")
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participant Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  catalogGame CatalogGame? @relation(fields: [catalogGameId], references: [id], onDelete: SetNull)
+
+  @@unique([source, participantId, externalId])
+  @@index([eventId, createdAt(sort: Desc)])
+  @@index([participantId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("donation_requests")
 }

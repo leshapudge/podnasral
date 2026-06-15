@@ -34,7 +34,7 @@ function unwrap<T>(json: unknown): T {
   if (o.success === true && "data" in o) return o.data as T;
 
   // Legacy v2 wrappers
-  if ("event" in o) return o.event as T;
+  if ("event" in o && !("requests" in o) && Object.keys(o).length === 1) return o.event as T;
   if ("leaderboard" in o) return o.leaderboard as T;
   if ("streamers" in o) return o.streamers as T;
   if ("boss" in o) return o.boss as T;
@@ -188,10 +188,25 @@ export interface MeData {
     rarity: string;
     kind: string;
     quantity: number;
-    effects: Record<string, number>;
+    effects: Record<string, number | boolean>;
     iconUrl?: string | null;
   }[];
   currentSession: SessionData | null;
+  pendingModifiers: {
+    id: string;
+    slug: string;
+    name: string;
+    iconUrl: string;
+    effects: string[];
+  }[];
+  activeAuction: {
+    id: string;
+    status: "PREPARING" | "RUNNING";
+    autoAppliedModifierIds: string[];
+  } | null;
+  donationAlerts: {
+    webhookPath: string;
+  } | null;
 }
 
 export interface SessionData {
@@ -306,6 +321,42 @@ export interface GameSearchResult {
   coverImage: string | null;
 }
 
+export interface DonationRequestData {
+  id: string;
+  source: "DONATIONALERTS" | "ADMIN";
+  status: "RECEIVED" | "ADDED" | "FAILED";
+  donorName: string;
+  amount: number;
+  currency: string;
+  message: string | null;
+  gameQuery: string | null;
+  rawgId: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  participant: {
+    id: string;
+    twitchLogin: string | null;
+    name: string | null;
+  } | null;
+  catalogGame: {
+    id: string;
+    title: string;
+    coverImage: string | null;
+    mainStoryHours: number | null;
+  } | null;
+}
+
+export interface DonationFeedData {
+  event: {
+    id: string;
+    name: string;
+    status: string;
+    startsAt: string;
+    endsAt: string;
+  } | null;
+  requests: DonationRequestData[];
+}
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -324,13 +375,25 @@ export const api = {
   getMe: () => request<MeData>(`${API}/me`),
 
   searchGames: (q: string) => request<GameSearchResult[]>(`${API}/games/search?q=${encodeURIComponent(q)}`),
+  getDonationRequests: (limit = 80, participantId?: string) =>
+    request<DonationFeedData>(
+      `${API}/donations?limit=${limit}${participantId ? `&participantId=${encodeURIComponent(participantId)}` : ""}`,
+    ),
 
   createAuction: async () => {
-    const r = await request<{ id: string } | { auction: { id: string } }>(`${API}/auctions`, {
+    const r = await request<
+      | { id: string }
+      | { auction: { id: string }; autoAppliedModifierIds?: string[] }
+    >(`${API}/auctions`, {
       method: "POST",
     });
-    if (r && typeof r === "object" && "auction" in r) return r.auction;
-    return r as { id: string };
+    if (r && typeof r === "object" && "auction" in r) {
+      return {
+        id: r.auction.id,
+        autoAppliedModifierIds: r.autoAppliedModifierIds ?? [],
+      };
+    }
+    return { id: (r as { id: string }).id, autoAppliedModifierIds: [] as string[] };
   },
 
   applyModifier: (auctionId: string, inventoryItemId: string) =>
@@ -340,9 +403,16 @@ export const api = {
     }),
 
   startAuction: (auctionId: string) =>
-    request<{ session?: SessionData; timeline?: unknown[] }>(`${API}/auctions/${auctionId}/start`, {
+    request<{ auction: { id: string; status: string } }>(`${API}/auctions/${auctionId}/start`, {
       method: "POST",
     }),
+  resolveAuctionFromDonations: (auctionId: string) =>
+    request<{ session?: SessionData; timeline?: unknown[] }>(
+      `${API}/auctions/${auctionId}/resolve-donations`,
+      {
+        method: "POST",
+      },
+    ),
 
   rollDifficulty: async (sessionId: string) => {
     const r = await request<{ difficulty: string } | { session: { difficulty: string } }>(
@@ -423,6 +493,30 @@ export const api = {
       }),
     syncHltb: () => request(`${API}/admin/games/sync-hltb`, { method: "POST" }),
     listParticipants: () => request<{ id: string; user: { twitchLogin: string | null; name: string | null } }[]>(`${API}/participants`),
+    createPseudoDonation: (payload: {
+      participantId: string;
+      donorName: string;
+      amount: number;
+      currency?: string;
+      message?: string;
+      gameQuery?: string;
+      rawgId?: number;
+    }) =>
+      request<DonationRequestData>(`${API}/admin/donations/pseudo`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+  },
+  streamer: {
+    getDonationAlertsWebhook: () =>
+      request<{ webhookKey: string; webhookPath: string; webhookUrl: string }>(
+        `${API}/streamer/donationalerts`,
+      ),
+    rotateDonationAlertsWebhook: () =>
+      request<{ webhookKey: string; webhookPath: string; webhookUrl: string }>(
+        `${API}/streamer/donationalerts`,
+        { method: "POST" },
+      ),
   },
 };
 

@@ -159,7 +159,12 @@ export const gameSessionsList = withApiHandler("game-sessions", "GET", async ({ 
     prisma.gameSession.count({ where }),
   ]);
 
-  return success(items, paginationMeta(page, limit, total));
+  const safeItems = items.map((s) => ({
+    ...s,
+    activePlayMs: Number(s.activePlayMs),
+  }));
+
+  return success(safeItems, paginationMeta(page, limit, total));
 });
 
 export const activityLogsList = withApiHandler("activity-logs", "GET", async ({ req }) => {

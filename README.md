@@ -31,6 +31,7 @@ npm run dev
 - `/` — Observer dashboard (all streamers)
 - `/streamer` — Streamer panel (auction, session, craft)
 - `/admin` — Event admin
+- `/auk` — Donation-driven auction queue
 - `/api/v1/*` — REST API
 - `/api/v1/live` — SSE live updates
 
@@ -42,6 +43,13 @@ npm run dev
 | GET | `/api/health` | — |
 | GET | `/api/auth/me` | session |
 | GET | `/api/v1/me` | session (streamer profile) |
+| POST | `/api/integrations/donationalerts` | `x-donationalerts-secret` |
+| POST | `/api/integrations/donationalerts/:webhookKey` | per-streamer webhook key |
+
+### DonationAlerts per streamer
+- Каждый стример берет персональный webhook URL в `Панель стримера`.
+- URL имеет вид `/api/integrations/donationalerts/:webhookKey` и привязан к конкретному участнику.
+- Донаты из этого webhook автоматически записываются и пытаются добавить игру в пул аукциона.
 
 ### Public
 | GET | `/api/v1/event`, `/leaderboard`, `/boss`, `/feed`, `/live` (SSE) |

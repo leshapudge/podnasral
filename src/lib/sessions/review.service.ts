@@ -1,6 +1,9 @@
 import prisma from "@/lib/db/prisma";
 import { badRequest, conflict } from "@/lib/api/errors";
-import { grantCasinoSpins } from "@/lib/casino/casino.service";
+import { getActiveEvent } from "@/lib/event/event.service";
+import { getCompetitionContext } from "@/lib/balance/catch-up";
+import { calculateCasinoSpins } from "@/lib/casino/spin-count";
+import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 import { getSession } from "./session.service";
 
 export async function submitGameReview(
@@ -31,19 +34,42 @@ export async function submitGameReview(
     throw badRequest("Review is too long (max 2000 characters)");
   }
 
-  await prisma.gameSession.update({
-    where: { id: sessionId },
-    data: {
-      playerRating: score,
-      playerReview: text,
-    },
+  const event = await getActiveEvent();
+  const competition = await getCompetitionContext(session.participantId, event.id);
+  const modifiers = (session.modifiersJson as ModifierEffects[]) ?? [];
+  const spins = calculateCasinoSpins({
+    modifiers,
+    hltbMainHours: session.hltbMainHours,
+    competition,
   });
 
-  const updated = await prisma.gameSession.findUniqueOrThrow({
-    where: { id: sessionId },
+  const updated = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.gameSession.updateMany({
+      where: {
+        id: sessionId,
+        participantId,
+        status: "COMPLETED",
+        playerRating: null,
+      },
+      data: {
+        playerRating: score,
+        playerReview: text,
+        casinoSpinsTotal: spins,
+        casinoSpinsUsed: 0,
+        casinoManualBonusApplied: false,
+      },
+    });
+    if (claimed.count !== 1) throw conflict("Review already submitted");
+
+    const sessionAfter = await tx.gameSession.findUniqueOrThrow({
+      where: { id: sessionId },
+    });
+    await tx.participant.update({
+      where: { id: participantId },
+      data: { status: "CASINO" },
+    });
+    return sessionAfter;
   });
 
-  const casinoSpins = await grantCasinoSpins(updated);
-
-  return { session: updated, casinoSpins };
+  return { session: updated, casinoSpins: spins };
 }

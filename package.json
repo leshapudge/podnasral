@@ -11,7 +11,7 @@
     "build": "npm run icons:sync && npm run panorama:sync && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "start:render": "prisma db push && npm run icons:sync && npm run panorama:sync && npm run db:seed && next start",
+    "start:render": "prisma db push && next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

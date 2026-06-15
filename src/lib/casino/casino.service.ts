@@ -8,6 +8,8 @@ import { rollLoot } from "@/lib/loot/loot.service";
 import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 import { logActivity } from "@/lib/activity/activity.service";
 import { resolveItemIcon } from "@/lib/inventory/item-assets";
+import { isBadModifierForAutoApply } from "@/lib/inventory/item-effects";
+import { queuePendingModifier } from "@/lib/modifiers/pending-modifiers";
 import { calculateCasinoSpins } from "./spin-count";
 import { buildLootSlotReels, getActiveModifiers } from "./modifiers";
 
@@ -68,7 +70,7 @@ export async function addCasinoBonusSpins(
   const event = await getActiveEvent();
   const config = parseEventConfig(event.config);
   const count = Math.floor(bonusSpins);
-  if (count <= 0) throw badRequest("Bonus spins must be positive");
+  if (count < 0) throw badRequest("Bonus spins must be non-negative");
   if (count > config.maxManualCasinoBonusSpins) {
     throw badRequest(`Max ${config.maxManualCasinoBonusSpins} bonus spins`);
   }
@@ -103,9 +105,7 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   }
 
   const remaining = session.casinoSpinsTotal - session.casinoSpinsUsed;
-  if (remaining <= 0) {
-    throw badRequest("No spins remaining");
-  }
+  if (remaining <= 0) throw badRequest("No spins remaining");
 
   if (!session.difficulty) throw badRequest("Difficulty required");
 
@@ -113,14 +113,22 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   const config = parseEventConfig(event.config);
   const modifiers = (session.modifiersJson as ModifierEffects[]) ?? [];
   const competition = await getCompetitionContext(participantId, event.id);
-  const spinIndex = session.casinoSpinsUsed;
   const activeModifiers = getActiveModifiers(session);
+  const existingCasinoDropItemIds = session.lootDrops.map((d) => d.itemDefinitionId);
 
-  const [drops] = await prisma.$transaction(async (tx) => {
-    await tx.gameSession.update({
-      where: { id: sessionId },
+  const [spinIndex, drops] = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.gameSession.updateMany({
+      where: {
+        id: sessionId,
+        // optimistic guard to prevent double-spend on concurrent spins
+        casinoSpinsUsed: session.casinoSpinsUsed,
+        casinoSpinsTotal: { gt: session.casinoSpinsUsed },
+      },
       data: { casinoSpinsUsed: { increment: 1 } },
     });
+    if (claimed.count !== 1) throw badRequest("No spins remaining");
+
+    const spinIndex = session.casinoSpinsUsed;
 
     const rolled = await rollLoot({
       gameSessionId: sessionId,
@@ -133,13 +141,23 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
       count: 1,
       competition,
       preferMaterial: spinIndex === 0,
+      excludeItemDefinitionIds: existingCasinoDropItemIds,
+      db: tx,
     });
 
-    return [rolled];
+    return [spinIndex, rolled] as const;
   });
 
-  const drop = drops[0];
-  if (!drop) throw badRequest("Loot roll failed");
+  const rolled = drops[0];
+  if (!rolled?.drop) throw badRequest("Loot roll failed");
+  const drop = rolled.drop;
+
+  if (drop.itemDefinition.kind === "MODIFIER") {
+    const effects = drop.itemDefinition.effectsJson as Record<string, number | boolean>;
+    if (isBadModifierForAutoApply(drop.itemDefinition.slug, effects)) {
+      await queuePendingModifier(participantId, rolled.inventoryItemId);
+    }
+  }
 
   const dropPayload = {
     slug: drop.itemDefinition.slug,
@@ -184,7 +202,7 @@ export function formatCasinoState(
     spinsTotal: session.casinoSpinsTotal,
     spinsUsed: session.casinoSpinsUsed,
     spinsRemaining: remaining,
-    finished: remaining <= 0 && session.casinoSpinsTotal > 0,
+    finished: remaining <= 0 && session.casinoManualBonusApplied,
     manualBonusApplied: session.casinoManualBonusApplied,
     maxManualBonusSpins,
   };

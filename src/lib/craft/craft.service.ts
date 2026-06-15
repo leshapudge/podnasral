@@ -30,7 +30,11 @@ export async function craftItem(recipeId: string, participantId: string, eventId
   if (!recipe) throw notFound("Recipe");
 
   const inventory = await prisma.inventoryItem.findMany({
-    where: { participantId },
+    where: {
+      participantId,
+      // Items already committed to an active auction modifier cannot be crafted.
+      modifierConsumptions: { none: {} },
+    },
     include: { itemDefinition: true },
   });
 
@@ -47,7 +51,11 @@ export async function craftItem(recipeId: string, participantId: string, eventId
     for (const ing of recipe.ingredients) {
       let remaining = ing.quantity;
       const items = await tx.inventoryItem.findMany({
-        where: { participantId, itemDefinitionId: ing.itemDefinitionId },
+        where: {
+          participantId,
+          itemDefinitionId: ing.itemDefinitionId,
+          modifierConsumptions: { none: {} },
+        },
         orderBy: { quantity: "asc" },
       });
       for (const item of items) {
@@ -62,6 +70,9 @@ export async function craftItem(recipeId: string, participantId: string, eventId
           });
           remaining = 0;
         }
+      }
+      if (remaining > 0) {
+        throw badRequest(`Not enough ${ing.itemDefinition.name}`);
       }
     }
 

@@ -107,6 +107,19 @@ export function summarizeItemEffects(effects: ItemEffects): string {
   return lines.length > 0 ? lines.join(" · ") : "Без эффектов";
 }
 
+/** Penalties from casino that must auto-apply on the streamer's next run. */
+export function isBadModifierForAutoApply(slug: string, effects: ItemEffects): boolean {
+  const num = (v: number | boolean | undefined) => (typeof v === "number" ? v : 0);
+  if (slug.startsWith("bad_")) return true;
+  if (num(effects.flatScorePenalty) > 0) return true;
+  if (effects.wastedDrop === true) return true;
+  if (num(effects.speedrunTaxPenalty) > 0) return true;
+  if (effects.factoryAssembly === true) return true;
+  if (effects.difficultyHardBias === true) return true;
+  if (slug === "leprechaun_debuff") return true;
+  return false;
+}
+
 export const ITEM_DESCRIPTIONS: Record<string, string> = Object.fromEntries(
   BALANCE_ITEM_CATALOG.map((i) => [i.slug, i.description]),
 );
