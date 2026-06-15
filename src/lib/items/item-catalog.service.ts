@@ -1,10 +1,13 @@
 import { BALANCE_ITEM_CATALOG } from "@/lib/balance/item-catalog";
+import { ensureBalanceItemDefinitions } from "@/lib/balance/item-definitions-sync";
 import prisma from "@/lib/db/prisma";
 import { resolveItemIcon } from "@/lib/inventory/item-assets";
 
 const CATALOG_SLUGS = BALANCE_ITEM_CATALOG.map((i) => i.slug);
 
 export async function listItemCatalog() {
+  await ensureBalanceItemDefinitions();
+
   const [items, recipes] = await Promise.all([
     prisma.itemDefinition.findMany({
       where: { slug: { in: CATALOG_SLUGS } },

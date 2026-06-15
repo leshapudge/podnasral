@@ -40,7 +40,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 function sortStreamers(list: StreamerRosterEntry[]) {
   return [...list].sort((a, b) => {
-    if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
+    const aLive = a.isLive && a.status !== "PAUSED";
+    const bLive = b.isLive && b.status !== "PAUSED";
+    if (aLive !== bLive) return aLive ? -1 : 1;
     return a.displayOrder - b.displayOrder;
   });
 }
@@ -64,9 +66,10 @@ function getStatusTextClass(
 
   switch (streamer.status) {
     case "PLAYING":
-    case "PAUSED":
     case "AWAITING_DIFFICULTY":
       return "text-primary";
+    case "PAUSED":
+      return "text-[#8f7f67]";
     case "AUCTIONING":
       return "text-hypixel-gold";
     case "COMPLETED":
@@ -86,13 +89,17 @@ function isGameStatus(status: string) {
 
 interface StreamersHubPanelProps {
   season?: HomeSeasonData | null;
+  initialStreamers?: StreamerRosterEntry[];
 }
 
 type DetailTab = "profile" | "completed";
 
-export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
+export function StreamersHubPanel({
+  season = null,
+  initialStreamers = [],
+}: StreamersHubPanelProps) {
   const eventUpcoming = season?.isUpcoming ?? false;
-  const [streamers, setStreamers] = useState<StreamerRosterEntry[]>([]);
+  const [streamers, setStreamers] = useState<StreamerRosterEntry[]>(initialStreamers);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ParticipantDetail | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("profile");
@@ -112,6 +119,10 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
 
   const sorted = useMemo(() => sortStreamers(streamers), [streamers]);
 
+  useEffect(() => {
+    setStreamers(initialStreamers);
+  }, [initialStreamers]);
+
   const refreshList = useCallback(async () => {
     try {
       const list = await api.getStreamersRoster();
@@ -122,10 +133,12 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
   }, []);
 
   useEffect(() => {
-    refreshList();
+    if (initialStreamers.length === 0) {
+      refreshList();
+    }
     const interval = setInterval(refreshList, 15000);
     return () => clearInterval(interval);
-  }, [refreshList]);
+  }, [initialStreamers.length, refreshList]);
 
   useEffect(() => {
     setDetailTab("profile");
@@ -181,13 +194,16 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
               Участники
             </h2>
             <p className="mt-1 text-[10px] text-[#5c4a32]">
-              {sorted.filter((s) => s.isLive).length} в эфире · {sorted.length} всего
+              {sorted.filter((s) => s.isLive && s.status !== "PAUSED").length} в эфире ·{" "}
+              {sorted.length} всего
             </p>
           </div>
           <ul className="os-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {sorted.map((s) => {
               const active = s.id === selectedId;
               const statusText = getStreamerStatusText(s, eventUpcoming);
+              // На паузе стример показывается как оффлайн по запросу UX.
+              const streamerLive = s.isLive && s.status !== "PAUSED";
               return (
                 <li key={s.id}>
                   <button
@@ -197,7 +213,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                       "mb-1 flex w-full items-start gap-2 rounded border px-2 py-2 text-left transition-colors",
                       active
                         ? "border-primary/50 bg-primary/10"
-                        : s.isLive
+                        : streamerLive
                           ? "border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10"
                           : "border-transparent bg-[#1a1208]/30 hover:border-[#1a1208] hover:bg-[#1a1208]/60",
                     )}
@@ -209,7 +225,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                         src={s.avatar}
                         size={32}
                       />
-                      {s.isLive && (
+                      {streamerLive && (
                         <span
                           className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#14100c] bg-primary"
                           title="В эфире"
@@ -250,7 +266,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                       <p
                         className={cn(
                           "text-[10px] font-semibold",
-                          s.isLive ? "text-primary" : "text-[#8f7f67]",
+                          streamerLive ? "text-primary" : "text-[#8f7f67]",
                         )}
                       >
                         {formatNumber(s.totalPoints)}
@@ -279,7 +295,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
               {selectedListItem.twitchLogin && (
                 <TwitchStreamButton
                   login={selectedListItem.twitchLogin}
-                  isLive={selectedListItem.isLive}
+                  isLive={selectedListItem.isLive && selectedListItem.status !== "PAUSED"}
                   variant="icon"
                   className="absolute right-0 top-0 h-7 w-7"
                 />
@@ -312,7 +328,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
               {detail.twitchLogin && (
                 <TwitchStreamButton
                   login={detail.twitchLogin}
-                  isLive={detail.isLive}
+                  isLive={detail.isLive && detail.status !== "PAUSED"}
                   variant="icon"
                   className="absolute right-0 top-0 h-7 w-7"
                 />
@@ -330,7 +346,7 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                 <div className="min-w-0 flex-1 text-center sm:text-left">
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                     <h3 className="font-display text-xl text-[#e8d5b0]">{detail.nickname}</h3>
-                    {detail.isLive && (
+                    {detail.isLive && detail.status !== "PAUSED" && (
                       <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] uppercase text-primary">
                         <Circle className="h-2 w-2 fill-current" />
                         В эфире

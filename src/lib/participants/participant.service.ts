@@ -4,7 +4,7 @@ import { getInventory } from "@/lib/craft/craft.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
 import type { Difficulty, ParticipantStatus } from "@prisma/client";
 import { getActiveEventOrNull } from "@/lib/event/event.service";
-import { parseEventConfig } from "@/lib/event/config";
+import { parseEventConfig, type EventConfig } from "@/lib/event/config";
 import { formatSessionPublic, getSession } from "@/lib/sessions/session.service";
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import { getElapsedMs, getProgressPct } from "@/lib/sessions/timer";
@@ -16,19 +16,17 @@ import { EVENT_STREAMERS } from "@/lib/event/event-roster";
 import { assignCompetitionRanks } from "./leaderboard-ranks";
 import { authorizedParticipantsWhere, authorizedStreamerUserFilter } from "./authorized-streamer";
 
-async function buildCurrentGameStats(params: {
+function buildCurrentGameStats(params: {
   hltbMainHours: number | null | undefined;
   elapsedMs: number;
   difficulty: Difficulty | null | undefined;
   modifiers: ModifierEffects[];
+  config: EventConfig;
 }) {
-  const { hltbMainHours, elapsedMs, difficulty, modifiers } = params;
+  const { hltbMainHours, elapsedMs, difficulty, modifiers, config } = params;
   if (!hltbMainHours || hltbMainHours <= 0) {
     return { hltbHours: null as number | null, playTimeMs: elapsedMs, projectedPoints: null as number | null };
   }
-
-  const event = await getActiveEventOrNull();
-  const config = parseEventConfig(event?.config);
   let projectedPoints: number | null = null;
 
   if (difficulty) {
@@ -79,7 +77,7 @@ function mapParticipantToEntry(
     avatar: p.user.image,
     totalPoints: p.totalPoints,
     status: p.status,
-    isLive: p.isLive,
+    isLive: p.isLive && p.status !== "PAUSED",
     currentGame:
       gamesEnabled && session
         ? {
@@ -176,14 +174,14 @@ export async function getStreamersRoster(eventId: string) {
   });
 }
 
-async function getParticipantRank(eventId: string, participantId: string): Promise<number> {
-  const participants = await prisma.participant.findMany({
-    where: authorizedParticipantsWhere(eventId),
-    orderBy: [{ totalPoints: "desc" }, { displayOrder: "asc" }],
-    select: { id: true, totalPoints: true },
+async function getParticipantRank(eventId: string, totalPoints: number): Promise<number> {
+  const higherCount = await prisma.participant.count({
+    where: {
+      ...authorizedParticipantsWhere(eventId),
+      totalPoints: { gt: totalPoints },
+    },
   });
-  const ranked = assignCompetitionRanks(participants);
-  return ranked.find((p) => p.id === participantId)?.rank ?? participants.length;
+  return higherCount + 1;
 }
 
 export async function updateParticipantStatus(
@@ -233,6 +231,7 @@ export async function getParticipantPublicDetail(participantId: string) {
 
   const event = await prisma.event.findUnique({ where: { id: participant.eventId } });
   const gamesEnabled = event?.status === "ACTIVE";
+  const config = parseEventConfig(event?.config);
 
   const inventory = await getInventory(participantId);
   const twitchLogin = participant.user.twitchLogin;
@@ -257,11 +256,12 @@ export async function getParticipantPublicDetail(participantId: string) {
 
   if (gamesEnabled && session) {
     const modifiers = (session.modifiersJson as ModifierEffects[]) ?? [];
-    currentGameStats = await buildCurrentGameStats({
+    currentGameStats = buildCurrentGameStats({
       hltbMainHours: session.hltbMainHours,
       elapsedMs,
       difficulty: session.difficulty,
       modifiers,
+      config,
     });
   } else if (gamesEnabled && participant.currentGameTitle) {
     const catalogGame = await prisma.catalogGame.findFirst({
@@ -272,15 +272,16 @@ export async function getParticipantPublicDetail(participantId: string) {
     if (hltb && progressPct > 0) {
       elapsedMs = Math.round((progressPct / 100) * hltb * 3_600_000);
     }
-    currentGameStats = await buildCurrentGameStats({
+    currentGameStats = buildCurrentGameStats({
       hltbMainHours: hltb,
       elapsedMs,
       difficulty: "NORMAL",
       modifiers: [],
+      config,
     });
   }
 
-  const rank = await getParticipantRank(participant.eventId, participant.id);
+  const rank = await getParticipantRank(participant.eventId, participant.totalPoints);
 
   return {
     id: participant.id,
@@ -290,7 +291,7 @@ export async function getParticipantPublicDetail(participantId: string) {
     avatar: participant.user.image,
     totalPoints: participant.totalPoints,
     status: participant.status,
-    isLive: participant.isLive,
+    isLive: participant.isLive && participant.status !== "PAUSED",
     eventStatus: event?.status ?? "UPCOMING",
     eventStartsAt: event?.startsAt.toISOString() ?? null,
     currentGame: gamesEnabled && session

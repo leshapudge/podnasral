@@ -186,8 +186,9 @@ export const MC_MODIFIER_ITEMS: CatalogItemSeed[] = [
   },
   {
     slug: "container_with_junk",
-    name: "Наушники Ozon",
-    description: "Челлендж: проходить игру под аудиокнигу Ozon. Даёт +2 спина без штрафа по очкам.",
+    name: "Аудиокнига Ozon",
+    description:
+      "Челлендж: обязательно проходить игру под аудиокнигу Ozon. Даёт +2 спина без штрафа по очкам.",
     rarity: "UNCOMMON",
     kind: "MODIFIER",
     effectsJson: { audiobookChallenge: true, extraLootRolls: 2 },

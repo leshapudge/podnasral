@@ -3,6 +3,7 @@
 import type { HomePageData } from "@/lib/landing/home-data.types";
 import type { ProfilePageData } from "@/lib/profile/profile-data.service";
 import type { InventoryGrid } from "@/lib/inventory/types";
+import type { StreamerRosterEntry } from "@/lib/api/client";
 import { OsDesktopExperience } from "./os/os-desktop-experience";
 import { OsShell, type OsUser } from "./os/os-shell";
 
@@ -11,6 +12,7 @@ interface HomePageProps {
   homeData: HomePageData;
   profileData: ProfilePageData | null;
   inventoryGrid: InventoryGrid | null;
+  initialStreamers: StreamerRosterEntry[];
   user?: OsUser;
 }
 
@@ -19,6 +21,7 @@ export function HomePage({
   homeData,
   profileData,
   inventoryGrid,
+  initialStreamers,
   user,
 }: HomePageProps) {
   return (
@@ -29,6 +32,7 @@ export function HomePage({
           homeData={homeData}
           profileData={profileData}
           inventoryGrid={inventoryGrid}
+          initialStreamers={initialStreamers}
           user={user}
           desktopMode
           onWindowClose={onWindowClose}

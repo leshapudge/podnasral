@@ -127,6 +127,7 @@ export async function pauseSession(sessionId: string, participantId: string) {
       data: {
         status: "PAUSED",
         gameProgressPct: getProgressPct(newActiveMs, session.hltbMainHours),
+        isLive: false,
       },
     });
 
@@ -163,7 +164,7 @@ export async function resumeSession(sessionId: string, participantId: string) {
 
     await tx.participant.update({
       where: { id: participantId },
-      data: { status: "PLAYING" },
+      data: { status: "PLAYING", isLive: true, lastLiveAt: now },
     });
 
     return s;

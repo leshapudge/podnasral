@@ -12,6 +12,7 @@ import type { InventoryGrid } from "@/lib/inventory/types";
 import { api } from "@/lib/api/client";
 import { connectLive } from "@/lib/api/client";
 import type { OsUser } from "./os/os-shell";
+import type { StreamerRosterEntry } from "@/lib/api/client";
 
 interface PodnasralHomeProps {
   isAuthenticated: boolean;
@@ -22,32 +23,30 @@ export function PodnasralHome({ isAuthenticated, user }: PodnasralHomeProps) {
   const [homeData, setHomeData] = useState<HomePageData | null>(null);
   const [profileData, setProfileData] = useState<ProfilePageData | null>(null);
   const [inventoryGrid, setInventoryGrid] = useState<InventoryGrid | null>(null);
+  const [initialStreamers, setInitialStreamers] = useState<StreamerRosterEntry[]>([]);
 
   const refresh = useCallback(async () => {
     try {
-      const [event, leaderboard, boss] = await Promise.all([
+      const [event, streamers, me] = await Promise.all([
         api.getEvent(),
-        api.getLeaderboard(),
-        api.getBoss(),
+        api.getStreamersRoster(),
+        isAuthenticated ? api.getMe().catch(() => null) : Promise.resolve(null),
       ]);
 
       setHomeData(
         buildHomePageData({
           event,
-          leaderboard: leaderboard ?? [],
-          boss,
+          leaderboard: streamers ?? [],
         }),
       );
+      setInitialStreamers(streamers ?? []);
 
-      if (isAuthenticated) {
-        try {
-          const me = await api.getMe();
-          setProfileData(buildProfileFromMe(me, event?.name));
-          setInventoryGrid(inventoryGridFromMe(me));
-        } catch {
-          setProfileData(null);
-          setInventoryGrid(null);
-        }
+      if (me) {
+        setProfileData(buildProfileFromMe(me, event?.name));
+        setInventoryGrid(inventoryGridFromMe(me));
+      } else {
+        setProfileData(null);
+        setInventoryGrid(null);
       }
     } catch (e) {
       console.error("[home]", e);
@@ -58,7 +57,7 @@ export function PodnasralHome({ isAuthenticated, user }: PodnasralHomeProps) {
     refresh();
     const interval = setInterval(refresh, 15000);
     const disconnect = connectLive((ev) => {
-      if (["leaderboard.patch", "boss.hp"].includes(ev.type)) {
+      if (ev.type === "leaderboard.patch") {
         refresh();
       }
     });
@@ -82,6 +81,7 @@ export function PodnasralHome({ isAuthenticated, user }: PodnasralHomeProps) {
       homeData={homeData}
       profileData={profileData}
       inventoryGrid={inventoryGrid}
+      initialStreamers={initialStreamers}
       user={user}
     />
   );

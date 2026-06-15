@@ -47,6 +47,6 @@ export interface HomePageData {
   season: HomeSeasonData | null;
   stats: HomeStat[];
   leaderboard: HomeLeaderboardEntry[];
-  featuredBoss: HomeBossData | null;
-  bosses: HomeBossData[];
+  featuredBoss?: HomeBossData | null;
+  bosses?: HomeBossData[];
 }

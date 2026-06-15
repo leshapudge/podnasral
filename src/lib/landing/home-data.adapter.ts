@@ -1,17 +1,7 @@
-import type { BossData, EventData, LeaderboardEntry } from "@/lib/api/client";
+import type { EventData, LeaderboardEntry } from "@/lib/api/client";
 import { getEventPhaseLabel, isEventUpcoming } from "@/lib/event/event-timing";
-import {
-  formatDateRu,
-  formatDateRuLong,
-  formatTimeRemaining,
-} from "@/lib/utils/time";
-import type {
-  HomeBossData,
-  HomeLeaderboardEntry,
-  HomePageData,
-  HomeSeasonData,
-  HomeStat,
-} from "./home-data.types";
+import { formatDateRu, formatDateRuLong } from "@/lib/utils/time";
+import type { HomeLeaderboardEntry, HomePageData, HomeSeasonData, HomeStat } from "./home-data.types";
 
 function buildSeason(event: EventData): HomeSeasonData {
   const progress = event.progress;
@@ -33,26 +23,9 @@ function buildSeason(event: EventData): HomeSeasonData {
     milestones: [
       { label: "Открытие", completed: !upcoming && quarter >= 1 },
       { label: "Аукционы", completed: !upcoming && quarter >= 2 },
-      { label: "Боссы", completed: !upcoming && quarter >= 3 },
+      { label: "Середина", completed: !upcoming && quarter >= 3 },
       { label: "Финал", completed: !upcoming && quarter >= 4 },
     ],
-  };
-}
-
-function buildBoss(boss: BossData): HomeBossData {
-  const endsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const slug = boss.slug ?? "ender_dragon";
-  return {
-    slug,
-    name: boss.name,
-    subtitle: "Мировой босс сезона",
-    currentHp: boss.currentHp,
-    maxHp: boss.maxHp,
-    hpPercent: boss.hpPercent,
-    status: boss.status,
-    timeRemaining: formatTimeRemaining(endsAt),
-    totalDamagers: boss.topDamagers.length,
-    topDamagers: boss.topDamagers,
   };
 }
 
@@ -70,10 +43,8 @@ function mapLeaderboard(entries: LeaderboardEntry[]): HomeLeaderboardEntry[] {
 export function buildHomePageData(input: {
   event: EventData | null;
   leaderboard: LeaderboardEntry[];
-  boss: BossData | null;
 }): HomePageData {
   const season = input.event ? buildSeason(input.event) : null;
-  const bosses = input.boss ? [buildBoss(input.boss)] : [];
 
   const upcoming = season?.isUpcoming ?? false;
 
@@ -88,14 +59,19 @@ export function buildHomePageData(input: {
         { label: "Участники", value: input.leaderboard.length, icon: "users" },
         { label: "Дней осталось", value: season?.daysRemaining ?? "—", icon: "shield" },
         { label: "Прогресс", value: season ? `${season.progress}%` : "—", icon: "gamepad" },
-        { label: "Босс HP", value: input.boss ? `${input.boss.hpPercent}%` : "—", icon: "swords" },
+        {
+          label: "Лидер",
+          value:
+            input.leaderboard.length > 0
+              ? `${input.leaderboard[0].nickname} · ${input.leaderboard[0].totalPoints}`
+              : "—",
+          icon: "swords",
+        },
       ];
 
   return {
     season,
     stats,
     leaderboard: mapLeaderboard(input.leaderboard),
-    featuredBoss: bosses[0] ?? null,
-    bosses,
   };
 }

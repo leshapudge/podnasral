@@ -103,6 +103,7 @@ export function StreamerPanel() {
   const [selectedAuctionGenre, setSelectedAuctionGenre] = useState<string | null>(null);
   const [recipes, setRecipes] = useState<CraftRecipeData[]>([]);
   const refreshSeq = useRef(0);
+  const auctionSearchSeq = useRef(0);
 
   const refresh = useCallback(async () => {
     const seq = ++refreshSeq.current;
@@ -181,19 +182,19 @@ export function StreamerPanel() {
     [auctionSearchFilteredGames, selectedAuctionGameId],
   );
 
-  useEffect(() => {
-    if (!auctionSearch) return;
-    if (auctionSearchFilteredGames.length === 0) {
-      setSelectedAuctionGameId(null);
-      return;
-    }
-    if (
-      !selectedAuctionGameId ||
-      !auctionSearchFilteredGames.some((game) => game.catalogGameId === selectedAuctionGameId)
-    ) {
-      setSelectedAuctionGameId(auctionSearchFilteredGames[0].catalogGameId);
-    }
-  }, [auctionSearch, auctionSearchFilteredGames, selectedAuctionGameId]);
+  const showAuctionSuggestions = useMemo(() => {
+    if (selectedAuctionGame) return false;
+    if (auctionSearching) return false;
+    if (!auctionSearch) return false;
+    if (auctionSearchQuery.trim().length < 2) return false;
+    return auctionSearchFilteredGames.length > 0;
+  }, [
+    auctionSearch,
+    auctionSearchFilteredGames.length,
+    auctionSearchQuery,
+    auctionSearching,
+    selectedAuctionGame,
+  ]);
 
   useEffect(() => {
     if (!auctionId || auctionPhase !== "RUNNING") {
@@ -204,6 +205,22 @@ export function StreamerPanel() {
       setAuctionSearching(false);
     }
   }, [auctionId, auctionPhase]);
+
+  useEffect(() => {
+    if (!auctionId || auctionPhase !== "RUNNING") return;
+    const q = auctionSearchQuery.trim();
+    if (q.length < 2) {
+      setAuctionSearch(null);
+      setAuctionSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void runAuctionGameSearch(auctionId, q);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [auctionId, auctionPhase, auctionSearchQuery]);
 
   async function runAction(fn: () => Promise<unknown>) {
     setLoading(true);
@@ -244,17 +261,21 @@ export function StreamerPanel() {
     });
   }
 
-  async function runAuctionGameSearch(currentAuctionId: string) {
-    const q = auctionSearchQuery.trim();
+  async function runAuctionGameSearch(currentAuctionId: string, query = auctionSearchQuery) {
+    const q = query.trim();
     if (q.length < 2) {
-      setError("Введите минимум 2 символа для поиска игры");
+      setAuctionSearch(null);
+      setAuctionSearching(false);
       return;
     }
 
+    const seq = ++auctionSearchSeq.current;
     setAuctionSearching(true);
     setError(null);
+    setInfo(null);
     try {
       const next = await api.searchAuctionGames(currentAuctionId, q);
+      if (seq !== auctionSearchSeq.current) return;
       setAuctionSearch(next);
       setSelectedAuctionGenre((prev) => {
         if (next.forcedGenres.length > 0 && next.genreRestrictionApplied) {
@@ -266,17 +287,19 @@ export function StreamerPanel() {
       });
       setSelectedAuctionGameId((prev) => {
         if (prev && next.games.some((game) => game.catalogGameId === prev)) return prev;
-        return next.games[0]?.catalogGameId ?? null;
+        return null;
       });
       if (next.games.length === 0) {
         setInfo("По этому запросу ничего не найдено. Попробуй другое название.");
       }
     } catch (e) {
+      if (seq !== auctionSearchSeq.current) return;
       setAuctionSearch(null);
       setSelectedAuctionGameId(null);
       setSelectedAuctionGenre(null);
       setError(e instanceof Error ? e.message : "Не удалось выполнить поиск");
     } finally {
+      if (seq !== auctionSearchSeq.current) return;
       setAuctionSearching(false);
     }
   }
@@ -568,26 +591,58 @@ export function StreamerPanel() {
                   забег.
                 </p>
                 <div className="mb-4 flex flex-wrap gap-2">
-                  <input
-                    type="search"
-                    value={auctionSearchQuery}
-                    onChange={(event) => setAuctionSearchQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      void runAuctionGameSearch(auctionId);
-                    }}
-                    placeholder="Например: Elden Ring"
-                    className="min-w-[220px] flex-1 rounded border border-[#2a1d10] bg-[#140f0a] px-3 py-2 text-sm text-[#e8d5b0] outline-none ring-primary/50 focus:ring-2"
-                  />
-                  <button
-                    type="button"
-                    className="mc-os-btn px-4 py-2 text-xs"
-                    disabled={loading || auctionSearching}
-                    onClick={() => void runAuctionGameSearch(auctionId)}
-                  >
-                    {auctionSearching ? "Ищем..." : "Найти игру"}
-                  </button>
+                  <div className="relative min-w-[220px] flex-1">
+                    <input
+                      type="search"
+                      value={auctionSearchQuery}
+                      onChange={(event) => {
+                        setAuctionSearchQuery(event.target.value);
+                        setSelectedAuctionGameId(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        if (showAuctionSuggestions && auctionSearchFilteredGames.length > 0) {
+                          const first = auctionSearchFilteredGames[0];
+                          setSelectedAuctionGameId(first.catalogGameId);
+                          setAuctionSearchQuery(first.title);
+                          return;
+                        }
+                        void runAuctionGameSearch(auctionId);
+                      }}
+                      placeholder="Начни вводить название игры…"
+                      className="w-full rounded border border-[#2a1d10] bg-[#140f0a] px-3 py-2 text-sm text-[#e8d5b0] outline-none ring-primary/50 focus:ring-2"
+                    />
+                    {showAuctionSuggestions ? (
+                      <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded border border-[#2a1d10] bg-[#120d08] shadow-lg">
+                        {auctionSearchFilteredGames.map((game) => (
+                          <li key={game.catalogGameId}>
+                            <button
+                              type="button"
+                              className="w-full border-b border-[#2a1d10] px-3 py-2 text-left text-sm text-[#d6c3a1] transition last:border-b-0 hover:bg-[#1a1208] hover:text-[#f6e8cb]"
+                              onClick={() => {
+                                setSelectedAuctionGameId(game.catalogGameId);
+                                setAuctionSearchQuery(game.title);
+                              }}
+                            >
+                              {game.title}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {auctionSearching ? (
+                      <p className="mt-1 text-xs text-[#a89070]">Ищем подсказки…</p>
+                    ) : null}
+                    {!auctionSearching &&
+                    auctionSearchQuery.trim().length >= 2 &&
+                    auctionSearch &&
+                    auctionSearchFilteredGames.length === 0 ? (
+                      <p className="mt-1 text-xs text-[#df8b73]">
+                        Ничего не найдено по этому запросу.
+                      </p>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     className="mc-os-btn px-4 py-2 text-xs"
@@ -641,55 +696,57 @@ export function StreamerPanel() {
                         отключены.
                       </p>
                     ) : null}
-                    <ul className="mb-4 max-h-72 space-y-2 overflow-auto pr-1">
-                      {auctionSearchFilteredGames.map((game) => {
-                        const active = game.catalogGameId === selectedAuctionGameId;
-                        return (
-                          <li key={game.catalogGameId}>
-                            <button
-                              type="button"
-                              className={`w-full rounded border px-3 py-2 text-left text-sm transition ${
-                                active
-                                  ? "border-primary/60 bg-primary/10 text-[#f6e8cb]"
-                                  : "border-[#2a1d10] bg-[#140f0a] text-[#d6c3a1] hover:border-primary/40"
-                              }`}
-                              onClick={() => setSelectedAuctionGameId(game.catalogGameId)}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded border border-[#2a1d10] bg-[#0d0a08]">
-                                  <Image
-                                    src={resolveGameCover(game.title, game.coverImage)}
-                                    alt=""
-                                    fill
-                                    className="object-cover"
-                                    unoptimized
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="truncate font-semibold">{game.title}</div>
-                                  <div className="text-xs text-[#a89070]">
-                                    HLTB: {game.mainStoryHours ?? "—"}ч · Очки:{" "}
-                                    {game.projectedBaseScore}
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-[#8d7a62]">
-                                    Main+Extra: {game.mainExtraHours ?? "—"}ч · 100%:{" "}
-                                    {game.completionistHours ?? "—"}ч
-                                    {game.metacritic != null
-                                      ? ` · MC ${Math.round(game.metacritic)}`
-                                      : ""}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    {auctionSearchFilteredGames.length === 0 ? (
-                      <p className="mb-3 text-sm text-[#df8b73]">
-                        Нет подходящих игр для выбранного жанра/запроса.
+                    {selectedAuctionGame ? (
+                      <div className="mb-4 rounded border border-[#2a1d10] bg-[#120d08] p-3">
+                        <div className="flex items-start gap-3">
+                          <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded border border-[#2a1d10] bg-[#0d0a08]">
+                            <Image
+                              src={resolveGameCover(
+                                selectedAuctionGame.title,
+                                selectedAuctionGame.coverImage,
+                              )}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-display text-base text-[#f6e8cb]">
+                              {selectedAuctionGame.title}
+                            </p>
+                            <p className="text-xs text-[#a89070]">
+                              HLTB: {selectedAuctionGame.mainStoryHours ?? "—"}ч · Очки:{" "}
+                              {selectedAuctionGame.projectedBaseScore}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[#8d7a62]">
+                              Main+Extra: {selectedAuctionGame.mainExtraHours ?? "—"}ч · 100%:{" "}
+                              {selectedAuctionGame.completionistHours ?? "—"}ч
+                              {selectedAuctionGame.metacritic != null
+                                ? ` · MC ${Math.round(selectedAuctionGame.metacritic)}`
+                                : ""}
+                            </p>
+                            {selectedAuctionGame.genres.length > 0 ? (
+                              <p className="mt-1 text-[11px] text-[#8d7a62]">
+                                Жанры:{" "}
+                                {selectedAuctionGame.genres.map(formatGenreLabel).join(", ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="mc-os-btn mt-3 px-3 py-1.5 text-[10px]"
+                          onClick={() => setSelectedAuctionGameId(null)}
+                        >
+                          Выбрать другую игру
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="mb-3 text-xs text-[#7a6a52]">
+                        Пока выбери игру из всплывающих подсказок по названию.
                       </p>
-                    ) : null}
+                    )}
                     <button
                       type="button"
                       className="mc-os-btn px-5 py-2 text-xs"
@@ -718,7 +775,7 @@ export function StreamerPanel() {
                   </>
                 ) : (
                   <p className="text-xs text-[#7a6a52]">
-                    Введи название и нажми «Найти игру», чтобы выбрать проект из RAWG + HLTB.
+                    Введи название игры, чтобы появились всплывающие подсказки из RAWG + HLTB.
                   </p>
                 )}
               </section>

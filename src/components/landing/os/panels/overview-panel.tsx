@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Play, Swords } from "lucide-react";
+import { Play } from "lucide-react";
 import type { AppTabSlug } from "@/lib/landing/app-tabs";
 import type { HomePageData } from "@/lib/landing/home-data.types";
 import { McItemSlot } from "../mc-item-slot";
 import { OsPanelFrame } from "../os-panel-frame";
 import { OsSectionTitle } from "../os-section-title";
-import { Progress } from "@/components/ui/progress";
 import { MC_ASSETS } from "@/lib/landing/assets";
-import { getBossTexture } from "@/lib/bosses/boss-assets";
 import { formatNumber } from "@/lib/utils";
 
 interface OverviewPanelProps {
@@ -19,7 +17,7 @@ interface OverviewPanelProps {
 }
 
 const quickLinks: { tab: AppTabSlug; label: string; texture: string }[] = [
-  { tab: "boss", label: "Боссы", texture: MC_ASSETS.items.witherSkull },
+  { tab: "overview", label: "Стримеры", texture: MC_ASSETS.items.experienceBottle },
   { tab: "inventory", label: "Инвентарь", texture: MC_ASSETS.items.shulkerBox },
   { tab: "achievements", label: "Достижения", texture: MC_ASSETS.items.enderPearl },
 ];
@@ -32,7 +30,7 @@ const statTextures: Record<string, string> = {
 };
 
 export function OverviewPanel({ isAuthenticated, homeData, onTabChange }: OverviewPanelProps) {
-  const { season, stats, featuredBoss } = homeData;
+  const { season, stats } = homeData;
 
   return (
     <OsPanelFrame>
@@ -63,14 +61,6 @@ export function OverviewPanel({ isAuthenticated, homeData, onTabChange }: Overvi
               Начать
             </Link>
           )}
-          <button
-            type="button"
-            onClick={() => onTabChange("boss")}
-            className="mc-os-btn inline-flex items-center gap-2 px-5 py-2 text-xs"
-          >
-            <Swords className="h-3.5 w-3.5" />
-            К боссу
-          </button>
           <Link
             href="/completions"
             className="mc-os-btn inline-flex items-center gap-2 px-5 py-2 text-xs"
@@ -113,43 +103,6 @@ export function OverviewPanel({ isAuthenticated, homeData, onTabChange }: Overvi
           </button>
         ))}
       </div>
-
-      {featuredBoss ? (
-        <>
-          <OsSectionTitle className="mt-6">Мировой босс</OsSectionTitle>
-          <div className="mt-2 flex flex-col gap-3 rounded border border-boss/30 bg-boss/5 p-4 sm:flex-row sm:items-center">
-            <McItemSlot
-              src={getBossTexture(featuredBoss.slug)}
-              alt={featuredBoss.name}
-              size="md"
-              enchanted
-              className="mx-auto sm:mx-0"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-lg text-[#e8d5b0]">{featuredBoss.name}</p>
-              <p className="text-xs text-[#7a6a52]">{featuredBoss.subtitle}</p>
-              <Progress
-                value={featuredBoss.hpPercent}
-                className="mt-2 h-2 bg-mc-redstone/20"
-                indicatorClassName="bg-gradient-to-r from-mc-redstone via-boss to-hypixel-gold"
-              />
-              <p className="mt-1 text-xs text-boss">
-                {formatNumber(featuredBoss.currentHp)} / {formatNumber(featuredBoss.maxHp)} HP ·{" "}
-                {featuredBoss.hpPercent}%
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onTabChange("boss")}
-              className="mc-os-btn shrink-0 px-4 py-2 text-xs"
-            >
-              Атаковать
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="mt-6 text-center text-sm text-[#7a6a52]">Боссы сезона скоро появятся</p>
-      )}
     </OsPanelFrame>
   );
 }

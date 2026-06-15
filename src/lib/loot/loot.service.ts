@@ -1,4 +1,5 @@
 import type { Difficulty, Prisma, Rarity } from "@prisma/client";
+import { ensureBalanceItemDefinitions } from "@/lib/balance/item-definitions-sync";
 import type { EventConfig } from "@/lib/event/config";
 import type { CompetitionContext } from "@/lib/balance/catch-up";
 import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/score-calculator";
@@ -64,6 +65,8 @@ export async function rollLoot(params: {
   /** If provided, these item definitions cannot be rolled. */
   excludeItemDefinitionIds?: string[];
 }) {
+  await ensureBalanceItemDefinitions();
+
   const db = params.db ?? prisma;
   const items = await db.itemDefinition.findMany({
     where: { kind: { in: ["MODIFIER", "MATERIAL"] } },

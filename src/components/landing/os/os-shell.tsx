@@ -12,13 +12,13 @@ import { OsStatusBar } from "./os-status-bar";
 import { StreamersHubPanel } from "./panels/streamers-hub-panel";
 import { ProfilePanel } from "./panels/profile-panel";
 import { InventoryPanel } from "./panels/inventory-panel";
-import { BossPanel } from "./panels/boss-panel";
 import { SecretsPanel } from "./panels/secrets-panel";
 import { ArtifactSpawner } from "@/components/secrets/artifact-spawner";
 import { ItemsEncyclopediaPanel } from "./panels/items-encyclopedia-panel";
 import { ViewerArcadePanel } from "./panels/viewer-arcade-panel";
 import { EVENT_BRAND } from "@/lib/event/event-brand";
 import { OsWindowControls } from "./os-window-controls";
+import type { StreamerRosterEntry } from "@/lib/api/client";
 
 export interface OsUser {
   nickname?: string | null;
@@ -32,6 +32,7 @@ interface OsShellProps {
   homeData: HomePageData;
   profileData: ProfilePageData | null;
   inventoryGrid: InventoryGrid | null;
+  initialStreamers: StreamerRosterEntry[];
   user?: OsUser;
   desktopMode?: boolean;
   onWindowClose?: () => void;
@@ -44,6 +45,7 @@ function Panel({
   homeData,
   profileData,
   inventoryGrid,
+  initialStreamers,
   onTabChange,
 }: {
   tab: AppTabSlug;
@@ -52,13 +54,14 @@ function Panel({
   homeData: HomePageData;
   profileData: ProfilePageData | null;
   inventoryGrid: InventoryGrid | null;
+  initialStreamers: StreamerRosterEntry[];
   onTabChange: (tab: AppTabSlug) => void;
 }) {
   switch (tab) {
     case "kazik":
       return <ViewerArcadePanel isAuthenticated={isAuthenticated} />;
     case "overview":
-      return <StreamersHubPanel season={homeData.season} />;
+      return <StreamersHubPanel season={homeData.season} initialStreamers={initialStreamers} />;
     case "profile":
       return (
         <ProfilePanel
@@ -77,18 +80,10 @@ function Panel({
       );
     case "items":
       return <ItemsEncyclopediaPanel />;
-    case "boss":
-      return (
-        <BossPanel
-          boss={homeData.featuredBoss}
-          bosses={homeData.bosses}
-          season={homeData.season}
-        />
-      );
     case "achievements":
       return <SecretsPanel />;
     default:
-      return <StreamersHubPanel season={homeData.season} />;
+      return <StreamersHubPanel season={homeData.season} initialStreamers={initialStreamers} />;
   }
 }
 
@@ -97,6 +92,7 @@ function OsShellInner({
   homeData,
   profileData,
   inventoryGrid,
+  initialStreamers,
   user,
   desktopMode = false,
   onWindowClose,
@@ -140,6 +136,7 @@ function OsShellInner({
               homeData={homeData}
               profileData={profileData}
               inventoryGrid={inventoryGrid}
+              initialStreamers={initialStreamers}
               onTabChange={setTab}
             />
           </div>
