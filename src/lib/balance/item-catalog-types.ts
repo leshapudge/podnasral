@@ -4,7 +4,7 @@ export interface CatalogItemSeed {
   description: string;
   rarity: "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
   kind: "MODIFIER" | "MATERIAL" | "CRAFTABLE";
-  effectsJson: Record<string, number | boolean>;
+  effectsJson: Record<string, number | boolean | string | string[]>;
 }
 
 export interface CatalogRecipeSeed {

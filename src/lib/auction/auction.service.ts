@@ -4,6 +4,7 @@ import { getActiveEvent } from "@/lib/event/event.service";
 import { parseEventConfig } from "@/lib/event/config";
 import { logActivity } from "@/lib/activity/activity.service";
 import { liveBroadcaster } from "@/lib/live/broadcaster";
+import { getRawgGameByIdCached } from "@/lib/catalog/rawg.service";
 import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 import { toJson } from "@/lib/utils/json";
 import { buildModifiersSnapshot } from "@/lib/casino/modifiers";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/modifiers/pending-modifiers";
 import {
   buildEliminationOrder,
+  getEligiblePoolGames,
 } from "./pool";
 
 const DEFAULT_PRESTART_AUCTION_LOGINS = ["kazanfarik"];
@@ -37,7 +39,20 @@ function canStartAuctionsBeforeActive(twitchLogin: string | null | undefined) {
 
 function parseEffects(json: unknown): ModifierEffects {
   if (!json || typeof json !== "object") return {};
-  const o = json as Record<string, number | boolean>;
+  const o = json as Record<string, number | boolean | string | string[]>;
+  const parseGenres = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return value
+        .filter((genre): genre is string => typeof genre === "string")
+        .map((genre) => normalizeGenreSlug(genre))
+        .filter(Boolean);
+    }
+    if (typeof value === "string") {
+      const genre = normalizeGenreSlug(value);
+      return genre ? [genre] : [];
+    }
+    return [];
+  };
   return {
     scoreMult: typeof o.scoreMult === "number" ? o.scoreMult : undefined,
     penaltyReduction: typeof o.penaltyReduction === "number" ? o.penaltyReduction : undefined,
@@ -70,6 +85,38 @@ function parseEffects(json: unknown): ModifierEffects {
     dropPenaltyMultiplier: typeof o.dropPenaltyMultiplier === "number" ? o.dropPenaltyMultiplier : undefined,
     wastedDrop: o.wastedDrop === true,
     blockRatSteal: o.blockRatSteal === true,
+    genreExpertChoice: o.genreExpertChoice === true,
+    auctionForcedGenres: parseGenres(o.auctionForcedGenres),
+    audiobookChallenge: o.audiobookChallenge === true,
+  };
+}
+
+function normalizeGenreSlug(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function hasGenreMatch(gameGenres: string[], requiredGenres: string[]) {
+  if (requiredGenres.length === 0) return true;
+  return gameGenres.some((genre) => requiredGenres.includes(genre));
+}
+
+function getAuctionGenreRules(modifiers: ModifierEffects[]) {
+  const forced = new Set<string>();
+  let canSelectGenre = false;
+
+  for (const mod of modifiers) {
+    if (mod.genreExpertChoice) {
+      canSelectGenre = true;
+    }
+    for (const genre of mod.auctionForcedGenres ?? []) {
+      const normalized = normalizeGenreSlug(genre);
+      if (normalized) forced.add(normalized);
+    }
+  }
+
+  return {
+    canSelectGenre,
+    forcedGenres: [...forced],
   };
 }
 
@@ -247,22 +294,122 @@ export async function applyModifier(
 }
 
 function buildDonationTimeline(
-  ranked: { catalogGameId: string }[],
+  candidateIds: string[],
+  winnerId: string,
 ) {
   const timeline: { step: number; eliminatedGameId?: string; winnerGameId?: string }[] = [];
   let step = 0;
 
-  for (let i = ranked.length - 1; i >= 1; i -= 1) {
-    timeline.push({ step: step++, eliminatedGameId: ranked[i].catalogGameId });
+  const losers = candidateIds.filter((id) => id !== winnerId);
+  for (let i = losers.length - 1; i >= 0; i -= 1) {
+    timeline.push({ step: step++, eliminatedGameId: losers[i] });
   }
-  timeline.push({ step, winnerGameId: ranked[0].catalogGameId });
+  timeline.push({ step, winnerGameId: winnerId });
   return timeline;
+}
+
+export type AuctionSelectionOption = {
+  catalogGameId: string;
+  title: string;
+  coverImage: string | null;
+  mainStoryHours: number;
+  projectedBaseScore: number;
+  genres: string[];
+};
+
+export async function getAuctionSelectionOptions(auctionId: string, participantId: string) {
+  const auction = await prisma.auctionRun.findUnique({
+    where: { id: auctionId },
+    select: {
+      id: true,
+      participantId: true,
+      status: true,
+      resolvedGameId: true,
+      modifiersJson: true,
+    },
+  });
+  if (!auction || auction.participantId !== participantId) throw notFound("Auction");
+  if (auction.status !== "RUNNING" && auction.status !== "PREPARING") {
+    throw badRequest("Auction is not in selection stage");
+  }
+
+  const event = await getActiveEvent();
+  const config = parseEventConfig(event.config);
+  const pool = await getEligiblePoolGames(event.id, participantId);
+  const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
+  const genreRules = getAuctionGenreRules(modifiers);
+  const needsGenres = genreRules.canSelectGenre || genreRules.forcedGenres.length > 0;
+
+  const gamesWithGenres = await Promise.all(
+    pool.map(async (entry) => {
+      let genres: string[] = [];
+      if (needsGenres && entry.catalogGame.rawgId) {
+        const rawg = await getRawgGameByIdCached(entry.catalogGame.rawgId).catch(() => null);
+        genres = (rawg?.genres ?? [])
+          .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
+          .filter(Boolean);
+      }
+
+      return {
+        catalogGameId: entry.catalogGameId,
+        title: entry.catalogGame.title,
+        coverImage: entry.catalogGame.coverImage ?? null,
+        mainStoryHours: entry.catalogGame.mainStoryHours ?? 10,
+        projectedBaseScore: Math.round(
+          (entry.catalogGame.mainStoryHours ?? 10) * config.pointsPerHour,
+        ),
+        genres: [...new Set(genres)],
+      } satisfies AuctionSelectionOption;
+    }),
+  );
+
+  let genreRestrictionApplied = false;
+  let games = gamesWithGenres;
+  if (genreRules.forcedGenres.length > 0) {
+    const hasGenreData = gamesWithGenres.some((game) => game.genres.length > 0);
+    if (hasGenreData) {
+      const filtered = gamesWithGenres.filter((game) =>
+        hasGenreMatch(game.genres, genreRules.forcedGenres),
+      );
+      if (filtered.length > 0) {
+        games = filtered;
+        genreRestrictionApplied = true;
+      }
+    }
+  }
+
+  games = games
+    .map((entry) => ({
+      catalogGameId: entry.catalogGameId,
+      title: entry.title,
+      coverImage: entry.coverImage,
+      mainStoryHours: entry.mainStoryHours,
+      projectedBaseScore: entry.projectedBaseScore,
+      genres: entry.genres,
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  const availableGenres = [...new Set(games.flatMap((game) => game.genres))].sort((a, b) =>
+    a.localeCompare(b, "en"),
+  );
+
+  return {
+    auctionId: auction.id,
+    status: auction.status,
+    selectedCatalogGameId: auction.resolvedGameId,
+    games,
+    canSelectGenre: genreRules.canSelectGenre,
+    forcedGenres: genreRules.forcedGenres,
+    genreRestrictionApplied,
+    genreDataReady: gamesWithGenres.some((game) => game.genres.length > 0),
+    availableGenres,
+  };
 }
 
 export async function startAuction(auctionId: string, participantId: string) {
   const participant = await prisma.participant.findUnique({
     where: { id: participantId },
-    select: { status: true, currentSessionId: true },
+    select: { status: true, currentSessionId: true, userId: true },
   });
   if (!participant) throw notFound("Participant");
   if (participant.status !== "AUCTIONING") {
@@ -280,123 +427,74 @@ export async function startAuction(auctionId: string, participantId: string) {
 
   const auction = await prisma.auctionRun.findUnique({
     where: { id: auctionId },
-    include: { modifierUses: true },
-  });
-  if (!auction || auction.participantId !== participantId) throw notFound("Auction");
-  if (auction.status !== "PREPARING") throw badRequest("Auction not in preparing state");
-
-  const claimed = await prisma.auctionRun.updateMany({
-    where: { id: auctionId, status: "PREPARING" },
-    data: {
-      status: "RUNNING",
-      resolvedGameId: null,
-      resolvedAt: null,
-      seed: null,
-      candidateCount: 0,
-    },
-  });
-  if (claimed.count !== 1) {
-    throw conflict("Auction already started");
-  }
-
-  return {
-    auction: await getAuction(auctionId),
-  };
-}
-
-export async function resolveAuctionFromDonations(auctionId: string, participantId: string) {
-  const participant = await prisma.participant.findUnique({
-    where: { id: participantId },
-    select: { status: true, currentSessionId: true, userId: true },
-  });
-  if (!participant) throw notFound("Participant");
-  if (participant.status !== "AUCTIONING") {
-    throw conflict("Cannot resolve auction in current status");
-  }
-  if (participant.currentSessionId) {
-    const activeSession = await prisma.gameSession.findUnique({
-      where: { id: participant.currentSessionId },
-      select: { status: true },
-    });
-    if (activeSession && activeSession.status !== "COMPLETED" && activeSession.status !== "DROPPED") {
-      throw conflict("Finish current session before starting a new auction");
-    }
-  }
-
-  const auction = await prisma.auctionRun.findUnique({
-    where: { id: auctionId },
     include: {
+      candidates: { orderBy: { orderIndex: "asc" }, select: { catalogGameId: true } },
       modifierUses: { include: { inventoryItem: { include: { itemDefinition: true } } } },
     },
   });
   if (!auction || auction.participantId !== participantId) throw notFound("Auction");
-  if (auction.status !== "RUNNING") throw badRequest("Donation auction is not running");
+  if (auction.status === "RUNNING") {
+    throw badRequest("Auction is running on external platform");
+  }
+  if (auction.status !== "PREPARING") throw badRequest("Auction not in preparing state");
+
+  if (!auction.resolvedGameId) {
+    const claimed = await prisma.auctionRun.updateMany({
+      where: { id: auctionId, status: "PREPARING" },
+      data: {
+        status: "RUNNING",
+        resolvedGameId: null,
+        resolvedAt: null,
+        seed: null,
+        candidateCount: 0,
+      },
+    });
+    if (claimed.count !== 1) {
+      throw conflict("Auction already started");
+    }
+
+    await prisma.auctionCandidate.deleteMany({ where: { auctionRunId: auctionId } });
+    return {
+      auction: await getAuction(auctionId),
+    };
+  }
+
+  const winner = await prisma.catalogGame.findUnique({
+    where: { id: auction.resolvedGameId },
+    select: { id: true, title: true, mainStoryHours: true },
+  });
+  if (!winner) throw badRequest("Selected game not found");
 
   const event = await getActiveEvent();
   const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
   const modifiersSnapshot = buildModifiersSnapshot(auction.modifierUses);
-
-  const grouped = await prisma.donationRequest.groupBy({
-    by: ["catalogGameId"],
-    where: {
-      participantId,
-      status: "ADDED",
-      catalogGameId: { not: null },
-      createdAt: { gte: auction.createdAt },
-    },
-    _sum: { amount: true },
-    _max: { createdAt: true },
-  });
-
-  const ranked = grouped
-    .filter((row): row is typeof row & { catalogGameId: string } => !!row.catalogGameId)
-    .map((row) => ({
-      catalogGameId: row.catalogGameId,
-      totalAmount: Number(row._sum.amount ?? 0),
-      lastDonationAt: row._max.createdAt ?? auction.createdAt,
-    }))
-    .sort((a, b) => {
-      if (b.totalAmount !== a.totalAmount) return b.totalAmount - a.totalAmount;
-      return b.lastDonationAt.getTime() - a.lastDonationAt.getTime();
-    });
-
-  if (ranked.length === 0) {
-    throw badRequest("Нет донатов с играми для завершения аукциона");
-  }
-
-  const games = await prisma.catalogGame.findMany({
-    where: { id: { in: ranked.map((r) => r.catalogGameId) } },
-    select: { id: true, title: true, mainStoryHours: true },
-  });
-  const gameById = new Map(games.map((g) => [g.id, g]));
-
-  const winner = gameById.get(ranked[0].catalogGameId);
-  if (!winner) throw badRequest("Winning game not found");
-  const timeline = buildDonationTimeline(ranked);
+  const candidateIds = auction.candidates.length
+    ? auction.candidates.map((c) => c.catalogGameId)
+    : [winner.id];
+  if (!candidateIds.includes(winner.id)) candidateIds.unshift(winner.id);
+  const timeline = buildDonationTimeline(candidateIds, winner.id);
   const now = new Date();
 
   const session = await prisma.$transaction(async (tx) => {
     const claimed = await tx.auctionRun.updateMany({
-      where: { id: auctionId, status: "RUNNING" },
+      where: { id: auctionId, status: "PREPARING", resolvedGameId: winner.id },
       data: {
         status: "RESOLVED",
         resolvedAt: now,
-        resolvedGameId: winner.id,
-        candidateCount: ranked.length,
+        candidateCount: candidateIds.length,
       },
     });
     if (claimed.count !== 1) {
       throw conflict("Auction already resolved");
     }
 
-    await tx.auctionCandidate.deleteMany({ where: { auctionRunId: auctionId } });
-    for (const [orderIndex, row] of ranked.entries()) {
+    if (auction.candidates.length === 0) {
       await tx.auctionCandidate.create({
         data: {
           auctionRunId: auctionId,
-          catalogGameId: row.catalogGameId,
-          orderIndex,
-          eliminatedAt: row.catalogGameId === winner.id ? null : now,
+          catalogGameId: winner.id,
+          orderIndex: 0,
+          eliminatedAt: null,
         },
       });
     }
@@ -454,8 +552,7 @@ export async function resolveAuctionFromDonations(auctionId: string, participant
       auctionId,
       gameTitle: session.catalogGame.title,
       participantId,
-      source: "donations",
-      totalDonations: ranked[0].totalAmount,
+      source: "manual_selection",
     },
   });
 
@@ -463,6 +560,104 @@ export async function resolveAuctionFromDonations(auctionId: string, participant
     auction: await getAuction(auctionId),
     session,
     timeline,
+  };
+}
+
+export async function resolveAuctionFromDonations(
+  auctionId: string,
+  participantId: string,
+  catalogGameId: string,
+  selectedGenre?: string | null,
+) {
+  const participant = await prisma.participant.findUnique({
+    where: { id: participantId },
+    select: { status: true, currentSessionId: true },
+  });
+  if (!participant) throw notFound("Participant");
+  if (participant.status !== "AUCTIONING") {
+    throw conflict("Cannot resolve auction in current status");
+  }
+  if (participant.currentSessionId) {
+    const activeSession = await prisma.gameSession.findUnique({
+      where: { id: participant.currentSessionId },
+      select: { status: true },
+    });
+    if (activeSession && activeSession.status !== "COMPLETED" && activeSession.status !== "DROPPED") {
+      throw conflict("Finish current session before starting a new auction");
+    }
+  }
+
+  const auction = await prisma.auctionRun.findUnique({
+    where: { id: auctionId },
+    select: { id: true, participantId: true, status: true },
+  });
+  if (!auction || auction.participantId !== participantId) throw notFound("Auction");
+  if (auction.status !== "RUNNING") throw badRequest("Auction is not running");
+
+  const options = await getAuctionSelectionOptions(auctionId, participantId);
+  const selected = options.games.find((g) => g.catalogGameId === catalogGameId);
+  if (!selected) throw badRequest("Selected game is not eligible");
+  const normalizedGenre = selectedGenre ? normalizeGenreSlug(selectedGenre) : null;
+
+  if (
+    options.canSelectGenre &&
+    options.genreDataReady &&
+    options.forcedGenres.length === 0 &&
+    !normalizedGenre
+  ) {
+    throw badRequest("Выберите жанр для завершения аукциона");
+  }
+  if (options.genreDataReady && normalizedGenre && !selected.genres.includes(normalizedGenre)) {
+    throw badRequest("Выбранная игра не относится к выбранному жанру");
+  }
+  if (
+    options.genreRestrictionApplied &&
+    options.forcedGenres.length > 0 &&
+    !hasGenreMatch(selected.genres, options.forcedGenres)
+  ) {
+    throw badRequest("Эта игра не подходит под жанровое ограничение модификатора");
+  }
+
+  const candidateIds = [
+    selected.catalogGameId,
+    ...options.games
+      .map((g) => g.catalogGameId)
+      .filter((id) => id !== selected.catalogGameId),
+  ];
+  const now = new Date();
+
+  const claimed = await prisma.$transaction(async (tx) => {
+    const updated = await tx.auctionRun.updateMany({
+      where: { id: auctionId, status: "RUNNING" },
+      data: {
+        status: "PREPARING",
+        resolvedGameId: selected.catalogGameId,
+        candidateCount: candidateIds.length,
+        resolvedAt: null,
+      },
+    });
+    if (updated.count !== 1) return 0;
+
+    await tx.auctionCandidate.deleteMany({ where: { auctionRunId: auctionId } });
+    for (const [orderIndex, gameId] of candidateIds.entries()) {
+      await tx.auctionCandidate.create({
+        data: {
+          auctionRunId: auctionId,
+          catalogGameId: gameId,
+          orderIndex,
+          eliminatedAt: gameId === selected.catalogGameId ? null : now,
+        },
+      });
+    }
+
+    return updated.count;
+  });
+
+  if (claimed !== 1) throw conflict("Auction already resolved");
+
+  return {
+    auction: await getAuction(auctionId),
+    selectedGame: selected,
   };
 }
 

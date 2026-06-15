@@ -62,8 +62,15 @@ export function catchUpScoreMultiplier(
     (ctx.rank - config.catchUp.rankThreshold + 1) * config.catchUp.rankStepBonus;
   const behindSteps = Math.floor(ctx.pointsBehindLeader / config.catchUp.pointsBehindStep);
   const behindBonus = behindSteps * config.catchUp.pointsBehindBonus;
+  const gamesBehindMedian = Math.max(0, Math.ceil(-ctx.gamesAheadOfMedian));
+  const gamesBonus = gamesBehindMedian * config.catchUp.gamesBehindMedianBonus;
 
-  const total = 1 + rankBonus + behindBonus;
+  let total = 1 + rankBonus + behindBonus + gamesBonus;
+  const half = Math.ceil(ctx.totalParticipants / 2);
+  if (ctx.rank > half) {
+    total = Math.max(total, config.catchUp.minimumForBottomHalf);
+  }
+
   return Math.min(config.catchUp.maxMultiplier, total);
 }
 
@@ -73,8 +80,14 @@ export function leaderSoftCapMultiplier(
   config: EventConfig,
 ): number {
   if (!config.leaderSoftCap.enabled) return 1;
+  if (ctx.rank > config.leaderSoftCap.applyToTopRanks) return 1;
   if (ctx.gamesAheadOfMedian < config.leaderSoftCap.gamesAheadOfMedian) return 1;
-  return config.leaderSoftCap.scoreMultiplier;
+  const overshoot = Math.max(
+    1,
+    Math.ceil(ctx.gamesAheadOfMedian - config.leaderSoftCap.gamesAheadOfMedian + 1),
+  );
+  const scaled = config.leaderSoftCap.scoreMultiplier ** overshoot;
+  return Math.max(0.75, scaled);
 }
 
 export function bossDamageRankMultiplier(

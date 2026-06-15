@@ -45,6 +45,41 @@ function sortStreamers(list: StreamerRosterEntry[]) {
   });
 }
 
+function getStreamerStatusText(
+  streamer: StreamerRosterEntry,
+  eventUpcoming: boolean,
+) {
+  if (!streamer.registered) return "Ожидает входа";
+  if (eventUpcoming) return "Участник";
+  return STATUS_LABELS[streamer.status] ?? streamer.status;
+}
+
+function getStatusBadgeClass(
+  streamer: StreamerRosterEntry,
+  eventUpcoming: boolean,
+) {
+  if (!streamer.registered || eventUpcoming) {
+    return "border-[#3c3125] bg-[#1a1208]/60 text-[#a89070]";
+  }
+
+  switch (streamer.status) {
+    case "PLAYING":
+    case "PAUSED":
+    case "AWAITING_DIFFICULTY":
+      return "border-primary/40 bg-primary/15 text-primary";
+    case "AUCTIONING":
+      return "border-hypixel-gold/40 bg-hypixel-gold/10 text-hypixel-gold";
+    case "COMPLETED":
+      return "border-[#6bc1ff]/40 bg-[#6bc1ff]/10 text-[#9bd9ff]";
+    case "DROPPED":
+      return "border-mc-redstone/40 bg-mc-redstone/10 text-mc-redstone";
+    case "CASINO":
+      return "border-mc-diamond/40 bg-mc-diamond/10 text-mc-diamond";
+    default:
+      return "border-[#3c3125] bg-[#1a1208]/60 text-[#a89070]";
+  }
+}
+
 interface StreamersHubPanelProps {
   season?: HomeSeasonData | null;
 }
@@ -148,18 +183,27 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
           <ul className="os-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {sorted.map((s) => {
               const active = s.id === selectedId;
+              const statusText = getStreamerStatusText(s, eventUpcoming);
               return (
                 <li key={s.id}>
                   <button
                     type="button"
                     onClick={() => setSelectedId(s.id)}
                     className={cn(
-                      "mb-1 flex w-full items-center gap-3 rounded border px-2 py-2 text-left transition-colors",
+                      "mb-1 flex w-full items-start gap-2 rounded border px-2 py-2 text-left transition-colors",
                       active
                         ? "border-primary/50 bg-primary/10"
-                        : "border-transparent bg-[#1a1208]/30 hover:border-[#1a1208] hover:bg-[#1a1208]/60",
+                        : s.isLive
+                          ? "border-primary/20 bg-primary/5 hover:border-primary/40 hover:bg-primary/10"
+                          : "border-transparent bg-[#1a1208]/30 hover:border-[#1a1208] hover:bg-[#1a1208]/60",
                     )}
                   >
+                    <span
+                      className={cn(
+                        "mt-1 h-8 w-1 shrink-0 rounded-full",
+                        s.isLive ? "bg-primary" : "bg-[#5c4a32]",
+                      )}
+                    />
                     <div className="relative shrink-0">
                       <McAvatar
                         nickname={s.nickname}
@@ -176,22 +220,61 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[#e8d5b0]">{s.nickname}</p>
-                      <p className="truncate text-[10px] text-[#7a6a52]">
-                        {s.isLive ? (
-                          <span className="text-primary">● LIVE</span>
-                        ) : !s.registered ? (
-                          "Ожидает входа"
-                        ) : eventUpcoming ? (
-                          "Участник"
-                        ) : (
-                          STATUS_LABELS[s.status] ?? s.status
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={cn(
+                            "inline-flex rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-wide",
+                            s.isLive
+                              ? "border-primary/40 bg-primary/15 text-primary"
+                              : "border-[#3c3125] bg-[#1a1208]/60 text-[#8f7f67]",
+                          )}
+                        >
+                          {s.isLive ? "в эфире" : "оффлайн"}
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex rounded border px-1.5 py-0.5 text-[9px] uppercase tracking-wide",
+                            getStatusBadgeClass(s, eventUpcoming),
+                          )}
+                        >
+                          {statusText}
+                        </span>
+                      </div>
+                      {!eventUpcoming && s.currentGame && (
+                        <>
+                          <p className="mt-1 truncate text-[11px] text-[#d6c3a1]">
+                            {s.currentGame.title}
+                          </p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-[#7a6a52]">
+                            {s.currentGame.difficulty ? (
+                              <span>{s.currentGame.difficulty}</span>
+                            ) : null}
+                            {s.currentGame.progressPct != null ? (
+                              <span>{Math.round(s.currentGame.progressPct)}%</span>
+                            ) : null}
+                            {s.currentGame.playTimeMs != null && s.currentGame.playTimeMs > 0 ? (
+                              <span>{formatDurationMs(s.currentGame.playTimeMs)}</span>
+                            ) : null}
+                            {s.currentGame.hltbHours != null ? (
+                              <span>HLTB {formatHltbHours(s.currentGame.hltbHours)}</span>
+                            ) : null}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-display text-[10px] text-hypixel-gold">
+                        {s.registered ? `#${s.rank}` : `#${s.displayOrder}`}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[10px] font-semibold",
+                          s.isLive ? "text-primary" : "text-[#8f7f67]",
                         )}
-                        {!eventUpcoming && s.currentGame ? ` · ${s.currentGame.title}` : ""}
+                      >
+                        {formatNumber(s.totalPoints)}
                       </p>
                     </div>
-                    <span className="font-display text-[10px] text-hypixel-gold">
-                      {s.registered ? `#${s.rank}` : `#${s.displayOrder}`}
-                    </span>
                   </button>
                 </li>
               );
@@ -379,6 +462,14 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                                 {game.difficulty && (
                                   <span className="rounded border border-[#2a2118] bg-[#1a1208]/60 px-2 py-1 text-[10px] uppercase text-[#7a6a52]">
                                     {game.difficulty}
+                                  </span>
+                                )}
+                                {game.playTimeMs != null && game.playTimeMs > 0 && (
+                                  <span className="inline-flex items-center gap-1.5 rounded border border-primary/30 bg-primary/10 px-2.5 py-1">
+                                    <Timer className="h-3.5 w-3.5 text-primary" />
+                                    <span className="font-display text-sm text-primary">
+                                      {formatDurationMs(game.playTimeMs)}
+                                    </span>
                                   </span>
                                 )}
                               </div>
@@ -614,6 +705,11 @@ export function StreamersHubPanel({ season = null }: StreamersHubPanelProps) {
                         )}
                         {h.dropPenalty != null && (
                           <span className="text-mc-redstone">-{h.dropPenalty}</span>
+                        )}
+                        {h.playTimeMs != null && h.playTimeMs > 0 && (
+                          <span className="text-[10px] text-[#a89070]">
+                            {formatDurationMs(h.playTimeMs)}
+                          </span>
                         )}
                       </li>
                     ))}

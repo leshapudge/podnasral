@@ -153,7 +153,10 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
   const drop = rolled.drop;
 
   if (drop.itemDefinition.kind === "MODIFIER") {
-    const effects = drop.itemDefinition.effectsJson as Record<string, number | boolean>;
+    const effects = drop.itemDefinition.effectsJson as Record<
+      string,
+      number | boolean | string | string[]
+    >;
     if (isBadModifierForAutoApply(drop.itemDefinition.slug, effects)) {
       await queuePendingModifier(participantId, rolled.inventoryItemId);
     }

@@ -53,6 +53,13 @@ export async function GET() {
           select: {
             id: true,
             status: true,
+            resolvedGame: {
+              select: {
+                id: true,
+                title: true,
+                mainStoryHours: true,
+              },
+            },
             modifierUses: { select: { inventoryItemId: true } },
           },
         })
@@ -97,6 +104,7 @@ export async function GET() {
             id: activeAuction.id,
             status: activeAuction.status,
             autoAppliedModifierIds: activeAuction.modifierUses.map((u) => u.inventoryItemId),
+            resolvedGame: activeAuction.resolvedGame,
           }
         : null,
       donationAlerts,

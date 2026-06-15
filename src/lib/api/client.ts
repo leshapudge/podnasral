@@ -119,7 +119,7 @@ export interface ParticipantInventoryItem {
   rarity: string;
   kind: string;
   quantity: number;
-  effects: Record<string, number>;
+  effects: Record<string, number | boolean | string | string[]>;
   iconUrl?: string | null;
   active: boolean;
 }
@@ -143,6 +143,7 @@ export interface ParticipantDetail {
     finalScore: number | null;
     dropPenalty: number | null;
     difficulty: string | null;
+    playTimeMs: number | null;
     completedAt: string | null;
     playerRating: number | null;
     playerReview: string | null;
@@ -155,6 +156,7 @@ export interface ParticipantDetail {
     review: string;
     finalScore: number | null;
     difficulty: string | null;
+    playTimeMs: number | null;
     completedAt: string | null;
   }[];
   stats: { gamesPlayed: number; gamesCompleted: number };
@@ -188,7 +190,7 @@ export interface MeData {
     rarity: string;
     kind: string;
     quantity: number;
-    effects: Record<string, number | boolean>;
+    effects: Record<string, number | boolean | string | string[]>;
     iconUrl?: string | null;
   }[];
   currentSession: SessionData | null;
@@ -203,6 +205,11 @@ export interface MeData {
     id: string;
     status: "PREPARING" | "RUNNING";
     autoAppliedModifierIds: string[];
+    resolvedGame: {
+      id: string;
+      title: string;
+      mainStoryHours: number | null;
+    } | null;
   } | null;
   donationAlerts: {
     webhookPath: string;
@@ -255,7 +262,7 @@ export interface CatalogItemData {
   description: string | null;
   rarity: string;
   kind: string;
-  effects: Record<string, number>;
+  effects: Record<string, number | boolean | string | string[]>;
   iconUrl: string | null;
   recipes: { recipeName: string; ingredients: string[] }[];
 }
@@ -357,6 +364,25 @@ export interface DonationFeedData {
   requests: DonationRequestData[];
 }
 
+export interface AuctionSelectionOptionsData {
+  auctionId: string;
+  status: "PREPARING" | "RUNNING";
+  selectedCatalogGameId: string | null;
+  canSelectGenre: boolean;
+  forcedGenres: string[];
+  genreRestrictionApplied: boolean;
+  genreDataReady: boolean;
+  availableGenres: string[];
+  games: {
+    catalogGameId: string;
+    title: string;
+    coverImage: string | null;
+    mainStoryHours: number;
+    projectedBaseScore: number;
+    genres: string[];
+  }[];
+}
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -403,14 +429,24 @@ export const api = {
     }),
 
   startAuction: (auctionId: string) =>
-    request<{ auction: { id: string; status: string } }>(`${API}/auctions/${auctionId}/start`, {
+    request<{ auction: { id: string; status: string }; session?: SessionData; timeline?: unknown[] }>(
+      `${API}/auctions/${auctionId}/start`,
+      {
       method: "POST",
-    }),
-  resolveAuctionFromDonations: (auctionId: string) =>
-    request<{ session?: SessionData; timeline?: unknown[] }>(
+      },
+    ),
+  getAuctionSelectionOptions: (auctionId: string) =>
+    request<AuctionSelectionOptionsData>(`${API}/auctions/${auctionId}/selection-options`),
+  resolveAuctionFromDonations: (
+    auctionId: string,
+    catalogGameId: string,
+    selectedGenre?: string | null,
+  ) =>
+    request<{ auction: { id: string; status: string } }>(
       `${API}/auctions/${auctionId}/resolve-donations`,
       {
         method: "POST",
+        body: JSON.stringify({ catalogGameId, selectedGenre }),
       },
     ),
 

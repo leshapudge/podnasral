@@ -65,8 +65,10 @@ function mapParticipantToEntry(
 ) {
   const session = p.currentSession;
   let progressPct = p.gameProgressPct ?? 0;
+  let elapsedMs = session ? Number(session.activePlayMs ?? 0) : 0;
   if (session && (session.status === "PLAYING" || session.status === "PAUSED")) {
     const elapsed = getElapsedMs(session.activePlayMs, session.lastResumedAt, session.status);
+    elapsedMs = Number(elapsed);
     progressPct = getProgressPct(elapsed, session.hltbMainHours);
   }
 
@@ -86,6 +88,8 @@ function mapParticipantToEntry(
             difficulty: session.difficulty,
             sessionStatus: session.status,
             progressPct,
+            hltbHours: session.hltbMainHours,
+            playTimeMs: elapsedMs,
           }
         : gamesEnabled && p.currentGameTitle
           ? { title: p.currentGameTitle, progressPct }
@@ -321,7 +325,10 @@ export async function getParticipantPublicDetail(participantId: string) {
       rarity: i.itemDefinition.rarity,
       kind: i.itemDefinition.kind,
       quantity: i.quantity,
-      effects: i.itemDefinition.effectsJson as Record<string, number>,
+      effects: i.itemDefinition.effectsJson as Record<
+        string,
+        number | boolean | string | string[]
+      >,
       iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
       active: i.itemDefinition.kind === "MODIFIER" && modifiersAvailable && i.quantity > 0,
     })),
@@ -333,6 +340,7 @@ export async function getParticipantPublicDetail(participantId: string) {
       finalScore: s.finalScore,
       dropPenalty: s.dropPenalty,
       difficulty: s.difficulty,
+      playTimeMs: Number(s.activePlayMs ?? 0),
       completedAt: s.completedAt?.toISOString() ?? null,
       playerRating: s.playerRating,
       playerReview: s.playerReview,
@@ -347,6 +355,7 @@ export async function getParticipantPublicDetail(participantId: string) {
         review: s.playerReview!,
         finalScore: s.finalScore,
         difficulty: s.difficulty,
+        playTimeMs: Number(s.activePlayMs ?? 0),
         completedAt: s.completedAt?.toISOString() ?? null,
       })),
     stats: {

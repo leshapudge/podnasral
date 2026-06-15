@@ -242,6 +242,8 @@ export function StreamerPanel() {
   const pendingModifierIds = new Set(me.pendingModifiers?.map((m) => m.id) ?? []);
   const optionalModifiers = modifiers.filter((m) => !pendingModifierIds.has(m.id));
   const craftEnabled = status === "IDLE";
+  const resolvedAuctionGame =
+    me.activeAuction && me.activeAuction.id === auctionId ? me.activeAuction.resolvedGame : null;
 
   const tabs: { id: StreamerTab; label: string; icon: typeof Gamepad2 }[] = [
     { id: "game", label: "Игра", icon: Gamepad2 },
@@ -387,8 +389,8 @@ export function StreamerPanel() {
               <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
                 <OsSectionTitle>Аукцион игр</OsSectionTitle>
                 <p className="mb-4 text-sm text-[#7a6a52]">
-                  Запустите аукцион, чтобы выбрать следующую игру. Модификаторы из инвентаря
-                  усилят забег.
+                  Запусти аукцион, проведи его на внешней площадке, затем выбери игру и стартуй
+                  забег.
                 </p>
                 {me.pendingModifiers.length > 0 && (
                   <div className="mb-4">
@@ -417,18 +419,71 @@ export function StreamerPanel() {
               </section>
             )}
 
-            {auctionId && auctionPhase !== "RUNNING" && (
+            {auctionId && auctionPhase === "PREPARING" && !resolvedAuctionGame && (
               <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
-                <OsSectionTitle>Подготовка аукциона</OsSectionTitle>
+                <OsSectionTitle>Старт аукциона</OsSectionTitle>
+                <p className="mb-4 text-sm text-[#7a6a52]">
+                  Запусти аукцион и открой `/auk`, чтобы завершить его вручную и выбрать игру из
+                  списка.
+                </p>
+                <button
+                  type="button"
+                  className="mc-os-btn px-6 py-2 text-xs"
+                  disabled={loading}
+                  onClick={() =>
+                    runAction(async () => {
+                        await api.startAuction(auctionId);
+                      setAuctionPhase("RUNNING");
+                      openDonationAuctionPage(auctionId);
+                    })
+                  }
+                >
+                  Запустить аукцион
+                </button>
+              </section>
+            )}
+
+            {auctionId && auctionPhase === "RUNNING" && (
+              <section className="rounded-lg border border-primary/30 bg-primary/5 p-5">
+                <OsSectionTitle>Аукцион запущен</OsSectionTitle>
+                <p className="mb-4 text-sm text-[#a89070]">
+                  Проведи аукцион на внешней площадке, затем в `/auk` нажми «Завершить аукцион» и
+                  выбери игру вручную.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="mc-os-btn px-4 py-2 text-xs"
+                    onClick={() => openDonationAuctionPage(auctionId)}
+                  >
+                    Открыть сайт аука
+                  </button>
+                  <button
+                    type="button"
+                    className="mc-os-btn px-4 py-2 text-xs"
+                    disabled={loading}
+                    onClick={() => void refresh()}
+                  >
+                    Обновить статус
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {auctionId && auctionPhase === "PREPARING" && resolvedAuctionGame && (
+              <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
+                <OsSectionTitle>Игра выбрана: {resolvedAuctionGame.title}</OsSectionTitle>
+                <p className="mb-2 text-xs text-[#7a6a52]">
+                  HLTB: {resolvedAuctionGame.mainStoryHours ?? "—"} ч
+                </p>
                 <p className="mb-3 text-xs text-[#7a6a52]">
-                  Выберите до {MAX_MODIFIERS_PER_AUCTION} модификаторов до старта, затем запустите
-                  донатный аукцион
+                  Теперь выбери до {MAX_MODIFIERS_PER_AUCTION} модификаторов и начни игру.
                 </p>
                 <ActiveModifiersStrip
                   modifiers={prepModifiers}
                   maxCount={MAX_MODIFIERS_PER_AUCTION}
                   className="mb-4"
-                  hint="Списываются при старте аукциона"
+                  hint="Списываются при старте игры"
                 />
                 <div className="mb-4 flex flex-wrap gap-2">
                   {optionalModifiers
@@ -469,48 +524,13 @@ export function StreamerPanel() {
                   disabled={loading}
                   onClick={() =>
                     runAction(async () => {
-                      await api.startAuction(auctionId);
-                      setAuctionPhase("RUNNING");
-                      openDonationAuctionPage(auctionId);
+                      const result = await api.startAuction(auctionId);
+                      setAuctionTimeline((result.timeline as typeof auctionTimeline) ?? []);
                     })
                   }
                 >
-                  Запустить донатный аук!
+                  Начать игру
                 </button>
-              </section>
-            )}
-
-            {auctionId && auctionPhase === "RUNNING" && (
-              <section className="rounded-lg border border-primary/30 bg-primary/5 p-5">
-                <OsSectionTitle>Донатный аукцион запущен</OsSectionTitle>
-                <p className="mb-4 text-sm text-[#a89070]">
-                  Игра теперь выбирается по донатам. Открой страницу аукциона и после окончания
-                  донатов заверши выбор победителя.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="mc-os-btn px-4 py-2 text-xs"
-                    onClick={() => openDonationAuctionPage(auctionId)}
-                  >
-                    Открыть сайт аука
-                  </button>
-                  <button
-                    type="button"
-                    className="mc-os-btn px-4 py-2 text-xs"
-                    disabled={loading}
-                    onClick={() =>
-                      runAction(async () => {
-                        const result = await api.resolveAuctionFromDonations(auctionId);
-                        setAuctionTimeline((result.timeline as typeof auctionTimeline) ?? []);
-                        setAuctionId(null);
-                        setAuctionPhase(null);
-                      })
-                    }
-                  >
-                    Завершить по донатам
-                  </button>
-                </div>
               </section>
             )}
 

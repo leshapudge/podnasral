@@ -1,14 +1,14 @@
-# Деплой strimkraft (бесплатно)
+# Деплой podnasral (бесплатно)
 
-Код: https://github.com/leshapudge/strimkraft
+Код: https://github.com/leshapudge/podnasral
 
 ## Вариант A — Render (рекомендуется, БД включена)
 
-1. Открой: **https://render.com/deploy?repo=https://github.com/leshapudge/strimkraft**
+1. Открой: **https://render.com/deploy?repo=https://github.com/leshapudge/podnasral**
 2. Войди через **GitHub** → подтверди доступ к репо.
 3. Render подхватит `render.yaml` (Web + PostgreSQL).
 4. Заполни переменные с `sync: false`:
-   - `AUTH_URL` — URL сервиса после деплоя, например `https://strimkraft.onrender.com`
+   - `AUTH_URL` — URL сервиса после деплоя, например `https://podnasral.onrender.com`
    - `AUTH_TWITCH_ID` / `AUTH_TWITCH_SECRET`
    - `STREAMER_TWITCH_LOGINS`, `ADMIN_TWITCH_*`
    - `RAWG_API_KEY`, `TWITCH_CLIENT_*` (можно те же, что Twitch OAuth)
@@ -28,7 +28,7 @@
    DATABASE_URL="postgresql://..." npx prisma db push
    DATABASE_URL="postgresql://..." npm run db:seed
    ```
-3. Vercel: **https://vercel.com/new/import?s=https://github.com/leshapudge/strimkraft**
+3. Vercel: **https://vercel.com/new/import?s=https://github.com/leshapudge/podnasral**
 4. Environment Variables (см. `.env.example`), `AUTH_URL` = `https://xxx.vercel.app`.
 5. Deploy → обнови Twitch redirect URL.
 

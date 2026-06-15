@@ -11,8 +11,10 @@ export const difficultyWeightsSchema = z.object({
 });
 
 export const eventConfigSchema = z.object({
+  /** Версия пресета баланса, чтобы можно было безболезненно обновлять старые ивенты. */
+  balanceVersion: z.number().default(2),
   pointsPerHour: z.number().default(10),
-  dropPenaltyRatio: z.number().default(0.22),
+  dropPenaltyRatio: z.number().default(0.18),
   bossDamageRatio: z.number().default(0.45),
   auctionCandidateCount: z.number().default(8),
   maxModifiersPerAuction: z.number().default(2),
@@ -23,8 +25,8 @@ export const eventConfigSchema = z.object({
     .object({
       EASY: z.number().default(0.85),
       NORMAL: z.number().default(1.0),
-      HARD: z.number().default(1.45),
-      NIGHTMARE: z.number().default(2.2),
+      HARD: z.number().default(1.35),
+      NIGHTMARE: z.number().default(1.9),
     })
     .default({}),
   /** Быстрее HLTB — бонус; медленнее — штраф (честная гонка). */
@@ -36,12 +38,12 @@ export const eventConfigSchema = z.object({
       }),
     )
     .default([
-      { maxRatio: 0.5, multiplier: 1.2 },
-      { maxRatio: 0.75, multiplier: 1.1 },
+      { maxRatio: 0.5, multiplier: 1.15 },
+      { maxRatio: 0.75, multiplier: 1.08 },
       { maxRatio: 1.0, multiplier: 1.0 },
       { maxRatio: 1.35, multiplier: 0.95 },
-      { maxRatio: 1.75, multiplier: 0.88 },
-      { maxRatio: TIME_MULTIPLIER_FALLBACK_MAX_RATIO, multiplier: 0.8 },
+      { maxRatio: 1.75, multiplier: 0.9 },
+      { maxRatio: TIME_MULTIPLIER_FALLBACK_MAX_RATIO, multiplier: 0.84 },
     ]),
   lootWeights: z
     .record(z.string(), z.record(z.string(), z.number()))
@@ -56,19 +58,22 @@ export const eventConfigSchema = z.object({
   catchUp: z
     .object({
       enabled: z.boolean().default(true),
-      /** Места с этим рангом и ниже получают догоняющий бонус (4 = 4-е место и хуже). */
-      rankThreshold: z.number().default(4),
-      rankStepBonus: z.number().default(0.04),
-      pointsBehindStep: z.number().default(120),
-      pointsBehindBonus: z.number().default(0.03),
-      maxMultiplier: z.number().default(1.28),
+      /** Места с этим рангом и ниже получают догоняющий бонус (3 = 3-е место и хуже). */
+      rankThreshold: z.number().default(3),
+      rankStepBonus: z.number().default(0.05),
+      pointsBehindStep: z.number().default(90),
+      pointsBehindBonus: z.number().default(0.035),
+      gamesBehindMedianBonus: z.number().default(0.05),
+      minimumForBottomHalf: z.number().default(1.1),
+      maxMultiplier: z.number().default(1.55),
     })
     .default({}),
   leaderSoftCap: z
     .object({
       enabled: z.boolean().default(true),
-      gamesAheadOfMedian: z.number().default(2),
-      scoreMultiplier: z.number().default(0.93),
+      applyToTopRanks: z.number().default(3),
+      gamesAheadOfMedian: z.number().default(1),
+      scoreMultiplier: z.number().default(0.9),
     })
     .default({}),
   boss: z
@@ -86,6 +91,17 @@ export type EventConfig = z.infer<typeof eventConfigSchema>;
 function sanitizeEventConfigRaw(raw: unknown): unknown {
   if (!raw || typeof raw !== "object") return raw;
   const o = { ...(raw as Record<string, unknown>) };
+  const balanceVersion = typeof o.balanceVersion === "number" ? o.balanceVersion : 1;
+
+  // Legacy configs (до ручного аука и catch-up v2) автоматически переходят на новый баланс.
+  if (balanceVersion < 2) {
+    delete o.dropPenaltyRatio;
+    delete o.difficultyMultipliers;
+    delete o.timeMultipliers;
+    delete o.catchUp;
+    delete o.leaderSoftCap;
+    o.balanceVersion = 2;
+  }
 
   if (Array.isArray(o.timeMultipliers)) {
     o.timeMultipliers = o.timeMultipliers.map((tier) => {

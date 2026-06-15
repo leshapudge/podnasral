@@ -38,6 +38,9 @@ export interface ModifierEffects {
   dropPenaltyMultiplier?: number;
   wastedDrop?: boolean;
   blockRatSteal?: boolean;
+  genreExpertChoice?: boolean;
+  auctionForcedGenres?: string[];
+  audiobookChallenge?: boolean;
 }
 
 export interface ScoreBreakdown {

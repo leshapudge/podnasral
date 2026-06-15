@@ -1,14 +1,14 @@
 # Render Blueprint — бесплатный Web + PostgreSQL
 # https://dashboard.render.com/select-repo?type=blueprint
 databases:
-  - name: strimkraft-db
+  - name: podnasral-db
     plan: free
-    databaseName: strimkraft
-    user: strimkraft
+    databaseName: podnasral
+    user: podnasral
 
 services:
   - type: web
-    name: strimkraft
+    name: podnasral
     runtime: node
     plan: free
     buildCommand: NPM_CONFIG_PRODUCTION=false npm install && npm run build
@@ -19,11 +19,13 @@ services:
         value: "22"
       - key: DATABASE_URL
         fromDatabase:
-          name: strimkraft-db
+          name: podnasral-db
           property: connectionString
       - key: AUTH_SECRET
         generateValue: true
       - key: AUTH_URL
+        sync: false
+      - key: APP_BASE_URL
         sync: false
       - key: AUTH_TRUST_HOST
         value: "true"
@@ -32,6 +34,8 @@ services:
       - key: AUTH_TWITCH_SECRET
         sync: false
       - key: STREAMER_TWITCH_LOGINS
+        sync: false
+      - key: PRESTART_AUCTION_TWITCH_LOGINS
         sync: false
       - key: ADMIN_TWITCH_IDS
         sync: false
@@ -45,3 +49,5 @@ services:
         sync: false
       - key: CRON_SECRET
         generateValue: true
+      - key: DONATIONALERTS_WEBHOOK_SECRET
+        sync: false

@@ -42,7 +42,7 @@ export async function listItemCatalog() {
     description: item.description,
     rarity: item.rarity,
     kind: item.kind,
-    effects: item.effectsJson as Record<string, number>,
+    effects: item.effectsJson as Record<string, number | boolean | string | string[]>,
     iconUrl: resolveItemIcon(item.slug, item.iconUrl),
     recipes: craftedFrom.get(item.slug) ?? [],
   }));
