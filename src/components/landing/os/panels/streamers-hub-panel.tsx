@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Circle, Clock, Gamepad2, ListChecks, Sparkles, Star, Timer, Trophy } from "lucide-react";
 import { McAvatar } from "../mc-avatar";
@@ -106,22 +106,42 @@ export function StreamersHubPanel({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [popupItem, setPopupItem] = useState<ParticipantInventoryItem | null>(null);
   const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
+  const popupCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const openItemPopup = (item: ParticipantInventoryItem, el: HTMLElement) => {
+  const clearPopupCloseTimer = useCallback(() => {
+    if (!popupCloseTimerRef.current) return;
+    clearTimeout(popupCloseTimerRef.current);
+    popupCloseTimerRef.current = null;
+  }, []);
+
+  const openItemPopup = useCallback((item: ParticipantInventoryItem, el: HTMLElement) => {
+    clearPopupCloseTimer();
     setPopupItem(item);
     setPopupAnchor(el.getBoundingClientRect());
-  };
+  }, [clearPopupCloseTimer]);
 
-  const closeItemPopup = () => {
+  const closeItemPopup = useCallback(() => {
+    clearPopupCloseTimer();
     setPopupItem(null);
     setPopupAnchor(null);
-  };
+  }, [clearPopupCloseTimer]);
+
+  const schedulePopupClose = useCallback((delayMs = 120) => {
+    clearPopupCloseTimer();
+    popupCloseTimerRef.current = setTimeout(() => {
+      popupCloseTimerRef.current = null;
+      setPopupItem(null);
+      setPopupAnchor(null);
+    }, delayMs);
+  }, [clearPopupCloseTimer]);
 
   const sorted = useMemo(() => sortStreamers(streamers), [streamers]);
 
   useEffect(() => {
     setStreamers(initialStreamers);
   }, [initialStreamers]);
+
+  useEffect(() => () => clearPopupCloseTimer(), [clearPopupCloseTimer]);
 
   const refreshList = useCallback(async () => {
     try {
@@ -612,6 +632,7 @@ export function StreamersHubPanel({
                               : "border-[#1a1208] bg-[#1a1208]/30 opacity-80 hover:opacity-100",
                           )}
                           onMouseEnter={(e) => openItemPopup(item, e.currentTarget)}
+                          onMouseLeave={() => schedulePopupClose()}
                           onClick={(e) => openItemPopup(item, e.currentTarget)}
                         >
                           <div className="relative shrink-0">
@@ -661,6 +682,7 @@ export function StreamersHubPanel({
                         type="button"
                         className="rounded border border-transparent p-1 transition-colors hover:border-[#373737]"
                         onMouseEnter={(e) => openItemPopup(item, e.currentTarget)}
+                        onMouseLeave={() => schedulePopupClose()}
                         onClick={(e) => openItemPopup(item, e.currentTarget)}
                         title={item.name}
                       >
@@ -726,6 +748,9 @@ export function StreamersHubPanel({
           anchorRect={popupAnchor}
           visible
           onClose={closeItemPopup}
+          withBackdrop={false}
+          onPopupMouseEnter={clearPopupCloseTimer}
+          onPopupMouseLeave={() => schedulePopupClose(0)}
         />
       )}
     </OsPanelFrame>

@@ -25,7 +25,7 @@ export function executeSecretCommand(input: string): CommandResult | null {
       return { message: "§aNotch§r: Thanks for playing! — removed Herobrine in Beta 1.6.6" };
     case "/chunk":
       return {
-        message: "Данные чанка восстановлены. Открой вкладку «Секреты» в OS.",
+        message: "Данные чанка восстановлены. Открой вкладку «Достижения» в OS.",
         action: "navigate",
         href: "/?tab=achievements",
       };

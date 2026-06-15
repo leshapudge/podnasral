@@ -269,11 +269,49 @@ export const MC_MODIFIER_ITEMS: CatalogItemSeed[] = [
 
 export const MC_RECIPES: CatalogRecipeSeed[] = [
   {
+    slug: "good_flat_4_recipe",
+    name: "Лесное яблоко",
+    resultSlug: "good_flat_4",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "junk_scrap", quantity: 1 },
+    ],
+  },
+  {
+    slug: "good_flat_8_recipe",
+    name: "Сияющее золотое яблоко",
+    resultSlug: "good_flat_8",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "gold_dust", quantity: 1 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
+    slug: "bad_flat_6_recipe",
+    name: "Тухлый картофель",
+    resultSlug: "bad_flat_6",
+    ingredients: [
+      { slug: "junk_scrap", quantity: 4 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
     slug: "anabolics_recipe",
     name: "Зелье огнестойкости",
     resultSlug: "anabolics",
     ingredients: [
       { slug: "iron_shard", quantity: 3 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
+    slug: "one_of_oneils_recipe",
+    name: "Клинок из незерита",
+    resultSlug: "one_of_oneils",
+    ingredients: [
+      { slug: "emerald_splinter", quantity: 2 },
+      { slug: "gold_dust", quantity: 2 },
       { slug: "streamer_tear", quantity: 1 },
     ],
   },
@@ -284,6 +322,25 @@ export const MC_RECIPES: CatalogRecipeSeed[] = [
     ingredients: [
       { slug: "iron_shard", quantity: 2 },
       { slug: "gold_dust", quantity: 2 },
+    ],
+  },
+  {
+    slug: "asnaeb_recipe",
+    name: "Тотем бессмертия",
+    resultSlug: "asnaeb",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "gold_dust", quantity: 1 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
+    slug: "body_armor_recipe",
+    name: "Незеритовый нагрудник",
+    resultSlug: "body_armor",
+    ingredients: [
+      { slug: "iron_shard", quantity: 4 },
+      { slug: "gold_dust", quantity: 1 },
     ],
   },
   {
@@ -308,6 +365,142 @@ export const MC_RECIPES: CatalogRecipeSeed[] = [
     ingredients: [
       { slug: "gold_dust", quantity: 2 },
       { slug: "emerald_splinter", quantity: 1 },
+    ],
+  },
+  {
+    slug: "genre_expert_recipe",
+    name: "Жанровый эксперт",
+    resultSlug: "genre_expert",
+    ingredients: [
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "emerald_splinter", quantity: 1 },
+      { slug: "iron_shard", quantity: 1 },
+    ],
+  },
+  {
+    slug: "genre_fever_recipe",
+    name: "Жанровая лихорадка",
+    resultSlug: "genre_fever",
+    ingredients: [
+      { slug: "emerald_splinter", quantity: 2 },
+      { slug: "streamer_tear", quantity: 2 },
+      { slug: "junk_scrap", quantity: 2 },
+    ],
+  },
+  {
+    slug: "speedometer_recipe",
+    name: "Redstone-часы",
+    resultSlug: "speedometer",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
+    slug: "movie_ticket_recipe",
+    name: "Блокнот путешественника",
+    resultSlug: "movie_ticket",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "junk_scrap", quantity: 1 },
+    ],
+  },
+  {
+    slug: "shorties_epidemic_recipe",
+    name: "Сноп сена",
+    resultSlug: "shorties_epidemic",
+    ingredients: [
+      { slug: "iron_shard", quantity: 3 },
+      { slug: "gold_dust", quantity: 1 },
+      { slug: "junk_scrap", quantity: 2 },
+    ],
+  },
+  {
+    slug: "leprechaun_boost_recipe",
+    name: "Золотая морковь",
+    resultSlug: "leprechaun_boost",
+    ingredients: [
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "emerald_splinter", quantity: 1 },
+    ],
+  },
+  {
+    slug: "leprechaun_debuff_recipe",
+    name: "Дурманный корень",
+    resultSlug: "leprechaun_debuff",
+    ingredients: [
+      { slug: "junk_scrap", quantity: 3 },
+      { slug: "gold_dust", quantity: 1 },
+    ],
+  },
+  {
+    slug: "bowling_bro_recipe",
+    name: "Ком снега",
+    resultSlug: "bowling_bro",
+    ingredients: [
+      { slug: "iron_shard", quantity: 2 },
+      { slug: "junk_scrap", quantity: 2 },
+    ],
+  },
+  {
+    slug: "container_with_junk_recipe",
+    name: "Аудиокнига Ozon",
+    resultSlug: "container_with_junk",
+    ingredients: [
+      { slug: "gold_dust", quantity: 1 },
+      { slug: "streamer_tear", quantity: 1 },
+      { slug: "junk_scrap", quantity: 2 },
+    ],
+  },
+  {
+    slug: "small_theft_effect_recipe",
+    name: "Кость сталкера",
+    resultSlug: "small_theft_effect",
+    ingredients: [
+      { slug: "streamer_tear", quantity: 2 },
+      { slug: "iron_shard", quantity: 2 },
+    ],
+  },
+  {
+    slug: "factory_assembly_recipe",
+    name: "Стол плотника",
+    resultSlug: "factory_assembly",
+    ingredients: [
+      { slug: "iron_shard", quantity: 4 },
+      { slug: "gold_dust", quantity: 1 },
+      { slug: "emerald_splinter", quantity: 1 },
+    ],
+  },
+  {
+    slug: "number_9_extra_recipe",
+    name: "Пузырёк опыта",
+    resultSlug: "number_9_extra",
+    ingredients: [
+      { slug: "emerald_splinter", quantity: 2 },
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "streamer_tear", quantity: 1 },
+    ],
+  },
+  {
+    slug: "snatched_recipe",
+    name: "Кирка с шелковым касанием",
+    resultSlug: "snatched",
+    ingredients: [
+      { slug: "emerald_splinter", quantity: 1 },
+      { slug: "gold_dust", quantity: 2 },
+      { slug: "streamer_tear", quantity: 2 },
+    ],
+  },
+  {
+    slug: "old_timer_lawlessness_recipe",
+    name: "Пластинка «13»",
+    resultSlug: "old_timer_lawlessness",
+    ingredients: [
+      { slug: "emerald_splinter", quantity: 2 },
+      { slug: "streamer_tear", quantity: 2 },
+      { slug: "gold_dust", quantity: 2 },
     ],
   },
   {

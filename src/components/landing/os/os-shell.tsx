@@ -13,7 +13,6 @@ import { StreamersHubPanel } from "./panels/streamers-hub-panel";
 import { ProfilePanel } from "./panels/profile-panel";
 import { InventoryPanel } from "./panels/inventory-panel";
 import { SecretsPanel } from "./panels/secrets-panel";
-import { ArtifactSpawner } from "@/components/secrets/artifact-spawner";
 import { ItemsEncyclopediaPanel } from "./panels/items-encyclopedia-panel";
 import { ViewerArcadePanel } from "./panels/viewer-arcade-panel";
 import { EVENT_BRAND } from "@/lib/event/event-brand";
@@ -128,7 +127,6 @@ function OsShellInner({
             user={user}
           />
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-            {desktopMode && <ArtifactSpawner />}
             <Panel
               tab={activeTab}
               isAuthenticated={isAuthenticated}

@@ -5,7 +5,6 @@ import { CommandPalette } from "./command-palette";
 import { AfkDirtBlock } from "./afk-dirt-block";
 import { ConsoleEasterEgg } from "./console-easter-egg";
 import { SecretToasts } from "./secret-toasts";
-import { ArtifactPickupModal } from "./artifact-pickup-modal";
 import { CommandOutputBanner } from "./command-output-banner";
 
 export function SecretEffects() {
@@ -17,7 +16,6 @@ export function SecretEffects() {
       <AfkDirtBlock />
       <ConsoleEasterEgg />
       <SecretToasts />
-      <ArtifactPickupModal />
     </>
   );
 }

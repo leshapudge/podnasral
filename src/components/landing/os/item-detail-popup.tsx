@@ -31,6 +31,9 @@ interface ItemDetailPopupProps {
   anchorRect?: DOMRect | null;
   visible: boolean;
   onClose?: () => void;
+  withBackdrop?: boolean;
+  onPopupMouseEnter?: () => void;
+  onPopupMouseLeave?: () => void;
 }
 
 const POPUP_WIDTH = 300;
@@ -59,7 +62,15 @@ function computePosition(anchorRect: DOMRect | null | undefined, popupHeight: nu
   return { left, top };
 }
 
-export function ItemDetailPopup({ item, anchorRect, visible, onClose }: ItemDetailPopupProps) {
+export function ItemDetailPopup({
+  item,
+  anchorRect,
+  visible,
+  onClose,
+  withBackdrop = true,
+  onPopupMouseEnter,
+  onPopupMouseLeave,
+}: ItemDetailPopupProps) {
   const [mounted, setMounted] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 12, top: 12 });
@@ -81,7 +92,7 @@ export function ItemDetailPopup({ item, anchorRect, visible, onClose }: ItemDeta
 
   return createPortal(
     <>
-      {onClose && (
+      {onClose && withBackdrop && (
         <div className="fixed inset-0 z-[9998] bg-black/40" onClick={onClose} aria-hidden />
       )}
       <div
@@ -93,7 +104,11 @@ export function ItemDetailPopup({ item, anchorRect, visible, onClose }: ItemDeta
         style={{ left: pos.left, top: pos.top, width: POPUP_WIDTH }}
         role="dialog"
         aria-label={item.name}
-        onMouseLeave={onClose}
+        onMouseEnter={onPopupMouseEnter}
+        onMouseLeave={() => {
+          onPopupMouseLeave?.();
+          onClose?.();
+        }}
       >
         <div className="flex flex-col items-center text-center">
           <McItemSlot

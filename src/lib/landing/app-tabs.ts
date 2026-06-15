@@ -3,7 +3,7 @@ export const APP_TABS = [
   { slug: "overview", label: "Стримеры" },
   { slug: "inventory", label: "Инвентарь" },
   { slug: "items", label: "Предметы" },
-  { slug: "achievements", label: "Секреты" },
+  { slug: "achievements", label: "Достижения" },
 ] as const;
 
 /** Вкладки без кнопки в навбаре (профиль открывается по клику на аватар). */

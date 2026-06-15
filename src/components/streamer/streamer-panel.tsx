@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Coins,
   Gamepad2,
   Hammer,
   Package,
@@ -20,7 +18,6 @@ import { McPageShell } from "@/components/landing/mc-page-shell";
 import { McAvatar } from "@/components/landing/os/mc-avatar";
 import { McItemSlot } from "@/components/landing/os/mc-item-slot";
 import { OsSectionTitle } from "@/components/landing/os/os-section-title";
-import { ViewerArcadePanel } from "@/components/landing/os/panels/viewer-arcade-panel";
 import { MinecraftInventory } from "@/components/inventory/minecraft-inventory";
 import { ActiveModifiersStrip } from "@/components/casino/active-modifiers-strip";
 import { StreamerCasinoModal } from "@/components/casino/streamer-casino-modal";
@@ -40,7 +37,7 @@ import {
 } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-type StreamerTab = "game" | "inventory" | "craft" | "kazik";
+type StreamerTab = "game" | "inventory" | "craft";
 type AuctionSearchGame = AuctionGameSearchData["games"][number];
 
 const MAX_MODIFIERS_PER_AUCTION = 2;
@@ -315,7 +312,6 @@ export function StreamerPanel() {
     { id: "game", label: "Игра", icon: Gamepad2 },
     { id: "inventory", label: "Инвентарь", icon: Package },
     { id: "craft", label: "Верстак", icon: Hammer },
-    { id: "kazik", label: "Казик", icon: Coins },
   ];
 
   return (
@@ -346,13 +342,6 @@ export function StreamerPanel() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/?tab=kazik"
-                className="mc-os-btn hidden px-3 py-1.5 text-[10px] uppercase sm:inline-flex"
-                title="Открыть казик на главной"
-              >
-                Казик OS
-              </Link>
               <div className="rounded border border-hypixel-gold/30 bg-hypixel-gold/10 px-4 py-2 text-center">
                 <Trophy className="mx-auto mb-0.5 h-4 w-4 text-hypixel-gold" />
                 <p className="font-display text-lg font-bold text-hypixel-gold">
@@ -956,16 +945,6 @@ export function StreamerPanel() {
                 await runAction(() => api.craft(recipeId));
               }}
             />
-          </motion.div>
-        )}
-
-        {tab === "kazik" && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <OsSectionTitle className="mb-3 justify-center">Игра на монеты</OsSectionTitle>
-            <p className="mb-4 text-center text-xs text-[#7a6a52]">
-              Липовый казик как у зрителей — не связан с наградами за забег
-            </p>
-            <ViewerArcadePanel isAuthenticated embedded />
           </motion.div>
         )}
       </div>

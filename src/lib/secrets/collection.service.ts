@@ -7,6 +7,11 @@ import { buildArtifactCollection, getUserArtifactSlugs } from "./artifact.engine
 import { SECRET_ACHIEVEMENTS, ARTIFACTS } from "./definitions";
 import type { CollectionState, GuestSecretState } from "./types";
 
+function calcPercent(unlocked: number, total: number) {
+  if (total <= 0) return 100;
+  return Math.round((Math.min(unlocked, total) / total) * 100);
+}
+
 export function buildCollectionFromGuest(state: GuestSecretState): CollectionState {
   const achievementSet = new Set(state.achievements);
   const artifactSet = new Set(state.artifacts);
@@ -21,15 +26,16 @@ export function buildCollectionFromGuest(state: GuestSecretState): CollectionSta
     foundAt: a.found ? new Date().toISOString() : undefined,
   }));
 
-  const achievementsPercent = Math.round(
-    (achievementSet.size / SECRET_ACHIEVEMENTS.length) * 100,
-  );
-  const artifactsPercent = Math.round((artifactSet.size / ARTIFACTS.length) * 100);
-  const totalPercent = Math.round(
-    ((achievementSet.size + artifactSet.size) /
-      (SECRET_ACHIEVEMENTS.length + ARTIFACTS.length)) *
-      100,
-  );
+  const achievementsUnlocked = achievements.filter((a) => a.unlocked).length;
+  const artifactsUnlocked = artifacts.filter((a) => a.found).length;
+  const achievementsTotal = SECRET_ACHIEVEMENTS.length;
+  const artifactsTotal = ARTIFACTS.length;
+  const allSecretsTotal = achievementsTotal + artifactsTotal;
+
+  const achievementsPercent = calcPercent(achievementsUnlocked, achievementsTotal);
+  const artifactsPercent = calcPercent(artifactsUnlocked, artifactsTotal);
+  const totalPercent =
+    allSecretsTotal > 0 ? Math.round(((achievementsUnlocked + artifactsUnlocked) / allSecretsTotal) * 100) : 100;
 
   return {
     achievements,
@@ -55,15 +61,16 @@ export async function buildCollectionForUser(userId: string): Promise<Collection
   const achievements = buildAchievementCollection(achievementSet);
   const artifacts = buildArtifactCollection(artifactSet);
 
-  const achievementsPercent = Math.round(
-    (achievementSet.size / SECRET_ACHIEVEMENTS.length) * 100,
-  );
-  const artifactsPercent = Math.round((artifactSet.size / ARTIFACTS.length) * 100);
-  const totalPercent = Math.round(
-    ((achievementSet.size + artifactSet.size) /
-      (SECRET_ACHIEVEMENTS.length + ARTIFACTS.length)) *
-      100,
-  );
+  const achievementsUnlocked = achievements.filter((a) => a.unlocked).length;
+  const artifactsUnlocked = artifacts.filter((a) => a.found).length;
+  const achievementsTotal = SECRET_ACHIEVEMENTS.length;
+  const artifactsTotal = ARTIFACTS.length;
+  const allSecretsTotal = achievementsTotal + artifactsTotal;
+
+  const achievementsPercent = calcPercent(achievementsUnlocked, achievementsTotal);
+  const artifactsPercent = calcPercent(artifactsUnlocked, artifactsTotal);
+  const totalPercent =
+    allSecretsTotal > 0 ? Math.round(((achievementsUnlocked + artifactsUnlocked) / allSecretsTotal) * 100) : 100;
 
   return {
     achievements,

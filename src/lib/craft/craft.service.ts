@@ -1,8 +1,11 @@
 import prisma from "@/lib/db/prisma";
 import { badRequest, notFound } from "@/lib/api/errors";
 import { logActivity } from "@/lib/activity/activity.service";
+import { ensureBalanceCraftRecipes } from "@/lib/balance/recipes-sync";
 
 export async function listRecipes() {
+  await ensureBalanceCraftRecipes();
+
   return prisma.craftRecipe.findMany({
     include: {
       resultItem: true,
@@ -12,6 +15,8 @@ export async function listRecipes() {
 }
 
 export async function craftItem(recipeId: string, participantId: string, eventId: string) {
+  await ensureBalanceCraftRecipes();
+
   const participant = await prisma.participant.findUnique({
     where: { id: participantId },
   });
