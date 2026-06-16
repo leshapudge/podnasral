@@ -36,6 +36,8 @@ type MaterialBagResult = {
   items: MaterialBagItem[];
 };
 
+type MaterialPickTier = "common" | "rare";
+
 function seededRandom(seed: string): () => number {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -107,22 +109,27 @@ async function convertMaterialDropToBag(params: {
   const rng = seededRandom(params.seed);
   const roll = rng();
   const quality: MaterialBagQuality =
-    rarePool.length > 0 && roll < 0.12
+    rarePool.length > 0 && roll < 0.1
       ? "jackpot"
-      : rarePool.length > 0 && roll < 0.4
+      : rarePool.length > 0 && roll < 0.34
         ? "mixed"
         : "common";
 
+  const pickPlanByQuality: Record<MaterialBagQuality, MaterialPickTier[]> = {
+    // Реже мешочек, но внутри больше ресурсов для реального крафта.
+    common: ["common", "common", "common"],
+    mixed: ["common", "common", "rare"],
+    jackpot: ["rare", "rare", "common", "rare"],
+  };
+
   const used = new Set<string>();
-  const first =
-    quality === "jackpot"
-      ? pickUniqueMaterial(rarePool, materials, used, rng)
-      : pickUniqueMaterial(commonPool, materials, used, rng);
-  const second =
-    quality === "common"
-      ? pickUniqueMaterial(commonPool, materials, used, rng)
-      : pickUniqueMaterial(rarePool, materials, used, rng);
-  const picked = [first, second].filter(
+  const picked = pickPlanByQuality[quality]
+    .map((tier) =>
+      tier === "rare"
+        ? pickUniqueMaterial(rarePool, materials, used, rng)
+        : pickUniqueMaterial(commonPool, materials, used, rng),
+    )
+    .filter(
     (
       item,
     ): item is {
@@ -290,7 +297,7 @@ export async function spinCasinoWheel(sessionId: string, participantId: string) 
     const spinIndex = session.casinoSpinsUsed;
 
     const preferMaterial =
-      spinIndex === 0 || seededRandom(`${sessionId}-casino-${spinIndex}-prefer-material`)() < 0.45;
+      spinIndex === 0 || seededRandom(`${sessionId}-casino-${spinIndex}-prefer-material`)() < 0.18;
 
     const rolled = await rollLoot({
       gameSessionId: sessionId,

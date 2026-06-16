@@ -40,19 +40,28 @@ export function MinecraftCraftingTable({
   loading = false,
   onCraft,
 }: MinecraftCraftingTableProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(recipes[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [craftFlash, setCraftFlash] = useState(false);
 
+  const sortedRecipes = useMemo(() => {
+    return [...recipes].sort((a, b) => {
+      const aCraftable = canCraftRecipe(a, inventory);
+      const bCraftable = canCraftRecipe(b, inventory);
+      if (aCraftable !== bCraftable) return aCraftable ? -1 : 1;
+      return a.name.localeCompare(b.name, "ru");
+    });
+  }, [recipes, inventory]);
+
   useEffect(() => {
-    if (!selectedId && recipes[0]) setSelectedId(recipes[0].id);
-    if (selectedId && !recipes.find((r) => r.id === selectedId)) {
-      setSelectedId(recipes[0]?.id ?? null);
+    if (!selectedId && sortedRecipes[0]) setSelectedId(sortedRecipes[0].id);
+    if (selectedId && !sortedRecipes.find((r) => r.id === selectedId)) {
+      setSelectedId(sortedRecipes[0]?.id ?? null);
     }
-  }, [recipes, selectedId]);
+  }, [sortedRecipes, selectedId]);
 
   const selected = useMemo(
-    () => recipes.find((r) => r.id === selectedId) ?? null,
-    [recipes, selectedId],
+    () => sortedRecipes.find((r) => r.id === selectedId) ?? null,
+    [sortedRecipes, selectedId],
   );
 
   const grid = useMemo(() => {
@@ -179,7 +188,7 @@ export function MinecraftCraftingTable({
               Книга рецептов
             </p>
             <div className="os-scrollbar max-h-[220px] space-y-1.5 overflow-y-auto pr-1">
-              {recipes.map((recipe) => {
+              {sortedRecipes.map((recipe) => {
                 const ok = canCraftRecipe(recipe, inventory);
                 const active = recipe.id === selectedId;
                 return (
