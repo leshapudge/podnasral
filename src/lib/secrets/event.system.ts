@@ -37,6 +37,3 @@ export function shouldTriggerNightEvent(): NightSound | null {
   return sounds[Math.floor(Math.random() * sounds.length)];
 }
 
-export function shouldSpawnHerobrine(): boolean {
-  return Math.random() < 0.001;
-}

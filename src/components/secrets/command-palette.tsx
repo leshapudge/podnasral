@@ -19,8 +19,6 @@ export function CommandPalette() {
     setCommandOpen,
     runCommand,
     setCommandOutput,
-    setShowHerobrine,
-    recordHerobrineSeen,
   } = useSecrets();
   const [input, setInput] = useState("");
 
@@ -44,13 +42,6 @@ export function CommandPalette() {
 
     setCommandOutput(result.message);
 
-    if (result.action === "herobrine") {
-      setShowHerobrine(true);
-      setTimeout(() => {
-        setShowHerobrine(false);
-        recordHerobrineSeen();
-      }, 500);
-    }
     if (result.action === "navigate" && result.href) {
       router.push(result.href);
     }

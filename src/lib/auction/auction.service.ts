@@ -198,7 +198,7 @@ async function applyQueuedBadModifiers(auctionId: string, participantId: string)
 
   for (const inventoryItemId of pendingIds) {
     try {
-      await applyModifier(auctionId, participantId, inventoryItemId, { ignoreCap: true });
+      await applyModifier(auctionId, participantId, inventoryItemId);
       appliedIds.push(inventoryItemId);
     } catch (error) {
       // Invalid/missing items should be dropped from the queue;
@@ -217,7 +217,6 @@ export async function applyModifier(
   auctionId: string,
   participantId: string,
   inventoryItemId: string,
-  options?: { ignoreCap?: boolean },
 ) {
   const auction = await prisma.auctionRun.findUnique({
     where: { id: auctionId },
@@ -237,12 +236,6 @@ export async function applyModifier(
   });
   if (!auction || auction.participantId !== participantId) throw notFound("Auction");
   if (auction.status !== "PREPARING") throw badRequest("Auction not in preparing state");
-
-  const event = await getActiveEvent();
-  const config = parseEventConfig(event.config);
-  if (!options?.ignoreCap && auction.modifierUses.length >= config.maxModifiersPerAuction) {
-    throw badRequest("Max modifiers reached");
-  }
 
   const item = await prisma.inventoryItem.findFirst({
     where: { id: inventoryItemId, participantId },

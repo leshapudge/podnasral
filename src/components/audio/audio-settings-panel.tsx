@@ -83,7 +83,7 @@ export function AudioSettingsPanel() {
           <ToggleRow
             icon={<Sparkles className="h-4 w-4 text-hypixel-gold" />}
             label="Звуки пасхалок"
-            description="Крипер, Херобрин, Эндермен и секретные страницы"
+            description="Крипер, Эндермен и секретные страницы"
             checked={settings.easterEggsEnabled}
             onChange={(v) => updateSettings({ easterEggsEnabled: v })}
           />

@@ -45,10 +45,6 @@ export class SecretEngine {
       toUnlock.push("afk");
     }
 
-    if (state.herobrineSeen && !has("herobrine-witness")) {
-      toUnlock.push("herobrine-witness");
-    }
-
     if (state.commandsRun.includes("/chunk") && !has("chunk-explorer")) {
       toUnlock.push("chunk-explorer");
     }

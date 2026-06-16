@@ -3,7 +3,6 @@ import type { Rarity } from "@prisma/client";
 export type SecretEventType =
   | "LOGO_CLICK"
   | "PAGE_VISIT"
-  | "HEROBRINE_SEEN"
   | "AFK_MILESTONE"
   | "CORNER_HIT"
   | "COMMAND_RUN"
@@ -44,7 +43,6 @@ export interface GuestSecretState {
   logoClicks: number;
   activeMs: number;
   lastActiveAt: number;
-  herobrineSeen: boolean;
   cornerHit: boolean;
   commandsRun: string[];
 }

@@ -11,7 +11,6 @@ export const DEFAULT_GUEST_STATE: GuestSecretState = {
   logoClicks: 0,
   activeMs: 0,
   lastActiveAt: Date.now(),
-  herobrineSeen: false,
   cornerHit: false,
   commandsRun: [],
 };

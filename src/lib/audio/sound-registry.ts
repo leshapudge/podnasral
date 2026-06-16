@@ -141,13 +141,6 @@ export const SOUND_REGISTRY: Record<SoundId, SoundDefinition> = {
     volume: 0.5,
     fallback: "creeperHiss",
   },
-  "easter.herobrine": {
-    id: "easter.herobrine",
-    path: "/audio/eastereggs/herobrine.ogg",
-    category: "eastereggs",
-    volume: 0.45,
-    fallback: "herobrineCreepy",
-  },
   "easter.enderman": {
     id: "easter.enderman",
     path: "/audio/eastereggs/enderman.ogg",

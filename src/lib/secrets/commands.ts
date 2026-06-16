@@ -2,7 +2,7 @@ import { SECRET_COMMANDS, WORLD_SEED } from "./definitions";
 
 export interface CommandResult {
   message: string;
-  action?: "herobrine" | "navigate" | "toast";
+  action?: "navigate" | "toast";
   href?: string;
 }
 
@@ -19,10 +19,8 @@ export function executeSecretCommand(input: string): CommandResult | null {
       };
     case "/seed":
       return { message: `World seed: ${WORLD_SEED}` };
-    case "/herobrine":
-      return { message: "You are not alone...", action: "herobrine" };
     case "/notch":
-      return { message: "§aNotch§r: Thanks for playing! — removed Herobrine in Beta 1.6.6" };
+      return { message: "§aNotch§r: Thanks for playing!" };
     case "/chunk":
       return {
         message: "Данные чанка восстановлены. Открой вкладку «Достижения» в OS.",

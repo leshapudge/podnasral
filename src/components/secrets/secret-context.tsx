@@ -35,14 +35,11 @@ interface SecretContextValue {
   unlockAchievement: (slug: string) => Promise<UnlockResult>;
   collectArtifact: (slug: string) => Promise<UnlockResult>;
   recordLogoClick: () => void;
-  recordHerobrineSeen: () => void;
   recordCornerHit: () => void;
   triggerWindowCloseEasterEgg: () => void;
   runCommand: (input: string) => CommandResult | null;
   toasts: ToastMessage[];
   dismissToast: (id: string) => void;
-  showHerobrine: boolean;
-  setShowHerobrine: (v: boolean) => void;
   showCreeperExplosion: boolean;
   commandOpen: boolean;
   setCommandOpen: (v: boolean) => void;
@@ -78,7 +75,6 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [state, setState] = useState<GuestSecretState>(() => loadGuestState());
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [showHerobrine, setShowHerobrine] = useState(false);
   const [showCreeperExplosion, setShowCreeperExplosion] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
@@ -210,12 +206,6 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
     evaluate(next, routeKey);
   }, [evaluate, routeKey, unlockAchievement]);
 
-  const recordHerobrineSeen = useCallback(() => {
-    const next = patchGuestState({ herobrineSeen: true });
-    setState(next);
-    evaluate(next, routeKey);
-  }, [evaluate, routeKey]);
-
   const recordCornerHit = useCallback(() => {
     const next = patchGuestState({ cornerHit: true });
     setState(next);
@@ -226,23 +216,13 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
     const roll = rollWindowCloseEasterEgg();
     if (!roll) return;
 
-    if (roll === "herobrine") {
-      setShowHerobrine(true);
-      emitAudioEvent("easter:herobrine");
-      setTimeout(() => {
-        setShowHerobrine(false);
-        recordHerobrineSeen();
-      }, 500);
-      return;
-    }
-
     if (roll === "creeper") {
       setShowCreeperExplosion(true);
       return;
     }
 
     emitAudioEvent("easter:enderman");
-  }, [recordHerobrineSeen]);
+  }, []);
 
   const runCommand = useCallback(
     (input: string): CommandResult | null => {
@@ -361,14 +341,11 @@ export function SecretProvider({ children }: { children: React.ReactNode }) {
     unlockAchievement,
     collectArtifact,
     recordLogoClick,
-    recordHerobrineSeen,
     recordCornerHit,
     triggerWindowCloseEasterEgg,
     runCommand,
     toasts,
     dismissToast,
-    showHerobrine,
-    setShowHerobrine,
     showCreeperExplosion,
     commandOpen,
     setCommandOpen,

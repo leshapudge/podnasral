@@ -69,7 +69,13 @@ export function StreamerCasinoModal({
     if (r) {
       setResults(r.reels);
       setLocalSession(r.session);
-      setToast(`Выпало: ${r.drop.name}`);
+      const bagItems =
+        r.materialBag?.items.map((item) => item.name).join(" + ") ?? null;
+      setToast(
+        bagItems
+          ? `Выпал ${r.drop.name}: ${bagItems}`
+          : `Выпало: ${r.drop.name}`,
+      );
       window.setTimeout(() => setToast(null), TOAST_MS);
       void onSpinComplete(r);
     }

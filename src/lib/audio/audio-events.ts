@@ -19,7 +19,6 @@ const EVENT_SOUND_MAP: Partial<Record<AudioEventName, SoundId | ((p?: Record<str
   "boss:attack": "boss.attack",
   "drop:legendary": "drop.legendary",
   "easter:creeper": "easter.creeperExplosion",
-  "easter:herobrine": "easter.herobrine",
   "easter:enderman": "easter.enderman",
   "easter:secretPage": "easter.secretPage",
   "arcade:slotTick": "arcade.slotTick",

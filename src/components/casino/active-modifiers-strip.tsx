@@ -14,7 +14,7 @@ interface ActiveModifiersStripProps {
 
 export function ActiveModifiersStrip({
   modifiers,
-  maxCount = 2,
+  maxCount,
   className,
   compact = false,
   hint,
@@ -31,7 +31,7 @@ export function ActiveModifiersStrip({
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10px] uppercase tracking-wider text-[#7a6a52]">
           Модификаторы забега
-          {maxCount > 0 && (
+          {typeof maxCount === "number" && maxCount > 0 && (
             <span className="ml-1 text-[#6a5840]">
               ({modifiers.length}/{maxCount})
             </span>

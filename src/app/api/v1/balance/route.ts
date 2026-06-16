@@ -23,7 +23,8 @@ export async function GET() {
         },
         boss: config.boss,
         auction: {
-          maxModifiers: config.maxModifiersPerAuction,
+          maxModifiers: null,
+          maxModifiersNote: "Без лимита",
           droppedGamesExcluded: true,
         },
         loot: {

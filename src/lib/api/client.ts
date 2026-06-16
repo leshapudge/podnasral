@@ -250,6 +250,10 @@ export interface SessionData {
 export interface CasinoSpinResult {
   drop: { slug: string; name: string; rarity: string; iconUrl?: string | null };
   reels: { id: string; label: string; texture: string }[];
+  materialBag: {
+    quality: "common" | "mixed" | "jackpot";
+    items: { slug: string; name: string; rarity: string; iconUrl?: string | null }[];
+  } | null;
   activeModifiers: SessionData["activeModifiers"];
   casino: SessionData["casino"];
   session: SessionData;

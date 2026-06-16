@@ -66,7 +66,7 @@ export const MC_MODIFIER_ITEMS: CatalogItemSeed[] = [
   },
   {
     slug: "bad_flat_3",
-    name: "Гнилостная плоть",
+    name: "Гнилая плоть",
     description: "Пахнет подземельем — −3 очка за прохождение.",
     rarity: "COMMON",
     kind: "MODIFIER",

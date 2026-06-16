@@ -10,6 +10,7 @@ export const ITEM_ICON_UNKNOWN = localItemIcon("_unknown");
 /** Все slug'и с локальными иконками (совпадает с scripts/sync-item-icons.mjs). */
 const CATALOG_SLUGS = [
   ...BALANCE_ITEM_CATALOG.map((i) => i.slug),
+  "material_bag",
   "emerald_charm",
   "shield_totem",
   "nether_star",

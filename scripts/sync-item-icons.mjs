@@ -50,6 +50,7 @@ const REMOTE_TEXTURES = {
   leprechaun_debuff: MC_ITEM("fermented_spider_eye"),
   bowling_bro: MC_ITEM("snowball"),
   movie_ticket: MC_ITEM("name_tag"),
+  material_bag: MC_ITEM("chest_minecart"),
   emerald_charm: MC_ITEM("emerald"),
   shield_totem: MC_ITEM("totem_of_undying"),
   nether_star: MC_ITEM("nether_star"),

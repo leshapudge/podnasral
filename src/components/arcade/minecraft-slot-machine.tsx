@@ -443,7 +443,11 @@ export function MinecraftSlotMachine({
       reels.forEach((r) => r.current?.startLoop());
       return;
     }
-  }, [spinning, audio, reels, spinKey]);
+    if (!targets) {
+      reels.forEach((r, idx) => r.current?.showResult(resultSymbols?.[idx] ?? randomSymbol()));
+      stoppingRef.current = false;
+    }
+  }, [spinning, audio, reels, spinKey, targets, resultSymbols]);
 
   useEffect(() => {
     if (!targets || stoppingRef.current) return;

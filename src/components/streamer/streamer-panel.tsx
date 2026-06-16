@@ -40,8 +40,6 @@ import { cn } from "@/lib/utils";
 type StreamerTab = "game" | "inventory" | "craft";
 type AuctionSearchGame = AuctionGameSearchData["games"][number];
 
-const MAX_MODIFIERS_PER_AUCTION = 2;
-
 const STATUS_LABELS: Record<string, string> = {
   IDLE: "Между играми",
   AUCTIONING: "Аукцион",
@@ -435,7 +433,6 @@ export function StreamerPanel() {
                 </p>
                 <ActiveModifiersStrip
                   modifiers={prepModifiers}
-                  maxCount={MAX_MODIFIERS_PER_AUCTION}
                   className="mb-4"
                   hint="Списываются при старте игры"
                 />
@@ -447,7 +444,7 @@ export function StreamerPanel() {
                         key={m.id}
                         type="button"
                         className="flex items-center gap-2 rounded border border-[#2a2118] bg-[#1a1208]/60 px-3 py-2 text-left transition hover:border-primary/40 disabled:opacity-40"
-                        disabled={loading || selectedModifiers.length >= MAX_MODIFIERS_PER_AUCTION}
+                        disabled={loading}
                         onClick={() =>
                           runAction(async () => {
                             await api.applyModifier(auctionId, m.id);
@@ -695,11 +692,10 @@ export function StreamerPanel() {
                   HLTB: {resolvedAuctionGame.mainStoryHours ?? "—"} ч
                 </p>
                 <p className="mb-3 text-xs text-[#7a6a52]">
-                  Теперь выбери до {MAX_MODIFIERS_PER_AUCTION} модификаторов и начни игру.
+                  Теперь можешь выбрать любые модификаторы и начать игру.
                 </p>
                 <ActiveModifiersStrip
                   modifiers={prepModifiers}
-                  maxCount={MAX_MODIFIERS_PER_AUCTION}
                   className="mb-4"
                   hint="Списываются при старте игры"
                 />
@@ -711,9 +707,7 @@ export function StreamerPanel() {
                         key={m.id}
                         type="button"
                         className="flex items-center gap-2 rounded border border-[#2a2118] bg-[#1a1208]/60 px-3 py-2 text-left transition hover:border-primary/40 disabled:opacity-40"
-                        disabled={
-                          loading || selectedModifiers.length >= MAX_MODIFIERS_PER_AUCTION
-                        }
+                        disabled={loading}
                         onClick={() =>
                           runAction(async () => {
                             await api.applyModifier(auctionId, m.id);

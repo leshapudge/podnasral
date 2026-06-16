@@ -12,7 +12,6 @@ export const ACHIEVEMENT_TEXTURES: Record<string, string> = {
   "night-owl": MC_ASSETS.items.clock,
   explorer: MC_ITEM("recovery_compass"),
   afk: MC_ITEM("red_bed"),
-  "herobrine-witness": MC_ASSETS.items.witherSkull,
   "chunk-explorer": MC_ITEM("filled_map"),
   "corner-hit": MC_BLOCK("dirt"),
 };

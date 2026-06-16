@@ -123,11 +123,6 @@ const generators: Record<ProceduralSoundId, (p: PlayCtx) => void> = {
     osc.stop(p.ctx.currentTime + 0.5);
   },
   creeperExplosion: (p) => noiseBurst(p, 0.45, 1.2),
-  herobrineCreepy: (p) => {
-    tone({ ...p, volume: p.volume * 0.5 }, 80, 0.35, "sawtooth");
-    tone({ ...p, volume: p.volume * 0.3 }, 200, 0.2, "square");
-    noiseBurst({ ...p, volume: p.volume * 0.15 }, 0.25);
-  },
   endermanTeleport: (p) => {
     noiseBurst(p, 0.2, 3);
     tone(p, 180, 0.15, "square");

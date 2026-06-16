@@ -17,7 +17,7 @@ export function ConsoleEasterEgg() {
       if (open && !logged.current) {
         logged.current = true;
         console.log(
-          "%cRemoved Herobrine",
+          "%cSecret console unlocked",
           "color: #55c57a; font-size: 16px; font-weight: bold;",
         );
         console.log("%cLooking for secrets?", "color: #ffaa00; font-size: 12px;");

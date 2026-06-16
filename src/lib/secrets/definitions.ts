@@ -67,15 +67,6 @@ export const SECRET_ACHIEVEMENTS: SecretAchievementDef[] = [
     hidden: true,
   },
   {
-    slug: "herobrine-witness",
-    name: "Herobrine Witness",
-    description: "Увидел Херобрина",
-    icon: "👁️",
-    rarity: "LEGENDARY",
-    points: 100,
-    hidden: true,
-  },
-  {
     slug: "chunk-explorer",
     name: "Chunk Explorer",
     description: "Запустил секретную команду /chunk",
@@ -100,7 +91,6 @@ export const ARTIFACTS: ArtifactDef[] = [];
 export const SECRET_COMMANDS: SecretCommandDef[] = [
   { command: "/help", description: "Список секретных команд" },
   { command: "/seed", description: "Показать сид мира" },
-  { command: "/herobrine", description: "Вызвать Херобрина" },
   { command: "/notch", description: "Сообщение от Notch" },
   { command: "/chunk", description: "Подсказка к достижениям" },
   { command: "/debug", description: "Статистика секретов", hidden: true },
