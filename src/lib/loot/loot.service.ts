@@ -4,7 +4,6 @@ import type { EventConfig } from "@/lib/event/config";
 import type { CompetitionContext } from "@/lib/balance/catch-up";
 import { combineModifierEffects, type ModifierEffects } from "@/lib/scoring/score-calculator";
 import prisma from "@/lib/db/prisma";
-import { badRequest } from "@/lib/api/errors";
 
 const RARITIES: Rarity[] = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"];
 
@@ -122,11 +121,17 @@ export async function rollLoot(params: {
 
     let candidates = pool;
     if (enforceUnique) {
-      candidates = candidates.filter((it) => !blockedItemIds.has(it.id));
-      if (candidates.length === 0) {
-        throw badRequest("No unique loot bonuses remaining");
+      const uniqueCandidates = candidates.filter((it) => !blockedItemIds.has(it.id));
+      if (uniqueCandidates.length > 0) {
+        candidates = uniqueCandidates;
+      } else {
+        // Уникальные закончились: мягко откатываемся к обычному пулу,
+        // чтобы спин никогда не падал с "No unique bonuses remaining".
+        blockedItemIds.clear();
+        candidates = pool;
       }
     }
+    if (candidates.length === 0) candidates = items;
     const idx = Math.floor(seededRandom(`${params.seed}-item-${i}`)() * candidates.length);
     const item = candidates[idx];
 
