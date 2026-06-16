@@ -109,7 +109,7 @@ export function applyModifierWeights<T extends PoolEntry>(
   );
 
   return pool.map((p) => {
-    const hours = p.catalogGame.mainStoryHours ?? 10;
+    const hours = p.catalogGame.mainStoryHours ?? SHORT_GAME_HOURS;
     let mult = 1;
 
     if (hours <= SHORT_GAME_HOURS) mult *= combined.short;

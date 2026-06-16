@@ -99,6 +99,11 @@ function normalizeGenreSlug(value: string) {
   return value.trim().toLowerCase();
 }
 
+function normalizeHltbMainHours(hours: number | null | undefined) {
+  if (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0) return null;
+  return hours;
+}
+
 function hasGenreMatch(gameGenres: string[], requiredGenres: string[]) {
   if (requiredGenres.length === 0) return true;
   return gameGenres.some((genre) => requiredGenres.includes(genre));
@@ -319,7 +324,7 @@ export type AuctionGameSearchResult = {
   rawgId: number;
   title: string;
   coverImage: string | null;
-  mainStoryHours: number | null;
+  mainStoryHours: number;
   mainExtraHours: number | null;
   completionistHours: number | null;
   projectedBaseScore: number;
@@ -384,6 +389,8 @@ export async function searchAuctionGames(
       }
       if (!catalog) return null;
 
+      const mainStoryHours = normalizeHltbMainHours(catalog.mainStoryHours);
+      if (!mainStoryHours) return null;
       const genres = (rawgGame.genres ?? [])
         .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
         .filter(Boolean);
@@ -393,10 +400,10 @@ export async function searchAuctionGames(
         rawgId: rawgGame.id,
         title: catalog.title,
         coverImage: catalog.coverImage ?? rawgGame.background_image ?? null,
-        mainStoryHours: catalog.mainStoryHours,
+        mainStoryHours,
         mainExtraHours: catalog.mainExtraHours,
         completionistHours: catalog.completionistHours,
-        projectedBaseScore: Math.round((catalog.mainStoryHours ?? 10) * config.pointsPerHour),
+        projectedBaseScore: Math.round(mainStoryHours * config.pointsPerHour),
         genres: [...new Set(genres)],
         releaseDate: rawgGame.released ?? null,
         rating: rawgGame.rating ?? null,
@@ -408,6 +415,7 @@ export async function searchAuctionGames(
   const gamesWithGenres = withCatalog.filter(
     (game): game is AuctionGameSearchResult => game !== null,
   );
+  const missingHltbCount = Math.max(0, rawgTop.length - gamesWithGenres.length);
 
   let genreRestrictionApplied = false;
   let games = gamesWithGenres;
@@ -431,6 +439,8 @@ export async function searchAuctionGames(
   return {
     auctionId: auction.id,
     status: auction.status,
+    pointsPerHour: config.pointsPerHour,
+    missingHltbCount,
     canSelectGenre: genreRules.canSelectGenre,
     forcedGenres: genreRules.forcedGenres,
     genreRestrictionApplied,
@@ -465,6 +475,9 @@ export async function getAuctionSelectionOptions(auctionId: string, participantI
 
   const gamesWithGenres = await Promise.all(
     pool.map(async (entry) => {
+      const mainStoryHours = normalizeHltbMainHours(entry.catalogGame.mainStoryHours);
+      if (!mainStoryHours) return null;
+
       let genres: string[] = [];
       if (needsGenres && entry.catalogGame.rawgId) {
         const rawg = await getRawgGameByIdCached(entry.catalogGame.rawgId).catch(() => null);
@@ -477,21 +490,22 @@ export async function getAuctionSelectionOptions(auctionId: string, participantI
         catalogGameId: entry.catalogGameId,
         title: entry.catalogGame.title,
         coverImage: entry.catalogGame.coverImage ?? null,
-        mainStoryHours: entry.catalogGame.mainStoryHours ?? 10,
-        projectedBaseScore: Math.round(
-          (entry.catalogGame.mainStoryHours ?? 10) * config.pointsPerHour,
-        ),
+        mainStoryHours,
+        projectedBaseScore: Math.round(mainStoryHours * config.pointsPerHour),
         genres: [...new Set(genres)],
       } satisfies AuctionSelectionOption;
     }),
   );
+  const validGamesWithGenres = gamesWithGenres.filter(
+    (game): game is AuctionSelectionOption => game !== null,
+  );
 
   let genreRestrictionApplied = false;
-  let games = gamesWithGenres;
+  let games = validGamesWithGenres;
   if (genreRules.forcedGenres.length > 0) {
-    const hasGenreData = gamesWithGenres.some((game) => game.genres.length > 0);
+    const hasGenreData = validGamesWithGenres.some((game) => game.genres.length > 0);
     if (hasGenreData) {
-      const filtered = gamesWithGenres.filter((game) =>
+      const filtered = validGamesWithGenres.filter((game) =>
         hasGenreMatch(game.genres, genreRules.forcedGenres),
       );
       if (filtered.length > 0) {
@@ -524,7 +538,7 @@ export async function getAuctionSelectionOptions(auctionId: string, participantI
     canSelectGenre: genreRules.canSelectGenre,
     forcedGenres: genreRules.forcedGenres,
     genreRestrictionApplied,
-    genreDataReady: gamesWithGenres.some((game) => game.genres.length > 0),
+    genreDataReady: validGamesWithGenres.some((game) => game.genres.length > 0),
     availableGenres,
   };
 }
@@ -587,6 +601,10 @@ export async function startAuction(auctionId: string, participantId: string) {
     select: { id: true, title: true, mainStoryHours: true },
   });
   if (!winner) throw badRequest("Selected game not found");
+  const winnerMainStoryHours = normalizeHltbMainHours(winner.mainStoryHours);
+  if (!winnerMainStoryHours) {
+    throw badRequest("У выбранной игры нет данных HLTB. Выберите другую игру.");
+  }
 
   const event = await getActiveEvent();
   const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
@@ -634,7 +652,7 @@ export async function startAuction(auctionId: string, participantId: string) {
         participantId,
         catalogGameId: winner.id,
         auctionRunId: auctionId,
-        hltbMainHours: winner.mainStoryHours ?? 10,
+        hltbMainHours: winnerMainStoryHours,
         modifiersJson: toJson(modifiers),
         modifiersSnapshotJson: toJson(modifiersSnapshot),
         status: "AWAITING_DIFFICULTY",
@@ -730,13 +748,31 @@ export async function resolveAuctionFromDonations(
     },
   });
   if (!selected) throw badRequest("Selected game not found");
+  let selectedMainStoryHours = selected.mainStoryHours;
+  let selectedMainExtraHours = selected.mainExtraHours;
+  let selectedCompletionistHours = selected.completionistHours;
+
+  if (!normalizeHltbMainHours(selectedMainStoryHours) && selected.rawgId) {
+    const synced = await syncCatalogGameFromRawg(selected.rawgId).catch(() => null);
+    if (synced) {
+      selectedMainStoryHours = synced.mainStoryHours;
+      selectedMainExtraHours = synced.mainExtraHours;
+      selectedCompletionistHours = synced.completionistHours;
+    }
+  }
+
+  const mainStoryHours = normalizeHltbMainHours(selectedMainStoryHours);
+  if (!mainStoryHours) {
+    throw badRequest("Для этой игры нет данных HLTB. Выберите игру с доступным HLTB.");
+  }
 
   const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
   const genreRules = getAuctionGenreRules(modifiers);
   const needsGenres = genreRules.canSelectGenre || genreRules.forcedGenres.length > 0;
   const normalizedGenre = selectedGenre ? normalizeGenreSlug(selectedGenre) : null;
+  const needsRawg = needsGenres;
   const rawg =
-    needsGenres && selected.rawgId
+    needsRawg && selected.rawgId
       ? await getRawgGameByIdCached(selected.rawgId).catch(() => null)
       : null;
   const selectedGenres = (rawg?.genres ?? [])
@@ -798,9 +834,9 @@ export async function resolveAuctionFromDonations(
       catalogGameId: selected.id,
       title: selected.title,
       coverImage: selected.coverImage ?? null,
-      mainStoryHours: selected.mainStoryHours ?? 10,
-      mainExtraHours: selected.mainExtraHours,
-      completionistHours: selected.completionistHours,
+      mainStoryHours,
+      mainExtraHours: selectedMainExtraHours,
+      completionistHours: selectedCompletionistHours,
       genres: selectedGenres,
     },
   };

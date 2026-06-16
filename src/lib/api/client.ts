@@ -335,6 +335,8 @@ export interface GameSearchResult {
 export interface AuctionGameSearchData {
   auctionId: string;
   status: "PREPARING" | "RUNNING";
+  pointsPerHour: number;
+  missingHltbCount: number;
   canSelectGenre: boolean;
   forcedGenres: string[];
   genreRestrictionApplied: boolean;
@@ -345,7 +347,7 @@ export interface AuctionGameSearchData {
     rawgId: number;
     title: string;
     coverImage: string | null;
-    mainStoryHours: number | null;
+    mainStoryHours: number;
     mainExtraHours: number | null;
     completionistHours: number | null;
     projectedBaseScore: number;

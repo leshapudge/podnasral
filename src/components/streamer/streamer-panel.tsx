@@ -600,6 +600,12 @@ export function StreamerPanel() {
                         отключены.
                       </p>
                     ) : null}
+                    {auctionSearch.missingHltbCount > 0 ? (
+                      <p className="mb-3 text-xs text-[#df8b73]">
+                        Скрыто без HLTB: {auctionSearch.missingHltbCount}. Для честного подсчета
+                        очков показываются только игры с данными HLTB.
+                      </p>
+                    ) : null}
                     {selectedAuctionGame ? (
                       <div className="mb-4 rounded border border-[#2a1d10] bg-[#120d08] p-3">
                         <div className="flex items-start gap-3">
@@ -620,8 +626,13 @@ export function StreamerPanel() {
                               {selectedAuctionGame.title}
                             </p>
                             <p className="text-xs text-[#a89070]">
-                              HLTB: {selectedAuctionGame.mainStoryHours ?? "—"}ч · Очки:{" "}
+                              HLTB: {selectedAuctionGame.mainStoryHours}ч · Очки:{" "}
                               {selectedAuctionGame.projectedBaseScore}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[#8d7a62]">
+                              Формула: {selectedAuctionGame.mainStoryHours} ×{" "}
+                              {auctionSearch.pointsPerHour} ={" "}
+                              {selectedAuctionGame.projectedBaseScore} очков
                             </p>
                             <p className="mt-1 text-[11px] text-[#8d7a62]">
                               Main+Extra: {selectedAuctionGame.mainExtraHours ?? "—"}ч · 100%:{" "}

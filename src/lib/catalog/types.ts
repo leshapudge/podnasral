@@ -4,6 +4,7 @@ export interface RawgSearchResult {
   name: string;
   released?: string;
   background_image?: string;
+  playtime?: number;
   rating?: number;
   metacritic?: number;
   genres?: { id: number; name: string; slug: string }[];
