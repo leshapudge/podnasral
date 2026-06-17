@@ -27,7 +27,7 @@ export async function GET() {
     return Response.json(
       participants.map((participant) => ({
         ...participant,
-        isLive: participant.isLive && participant.status !== "PAUSED",
+        isLive: participant.isLive,
       })),
     );
   } catch (e) {

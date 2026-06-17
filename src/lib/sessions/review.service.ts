@@ -14,8 +14,8 @@ export async function submitGameReview(
 ) {
   const session = await getSession(sessionId, participantId);
 
-  if (session.status !== "COMPLETED") {
-    throw conflict("Review only for completed games");
+  if (session.status !== "COMPLETED" && session.status !== "DROPPED") {
+    throw conflict("Review only for completed or dropped games");
   }
   if (session.playerRating != null) {
     throw conflict("Review already submitted");
@@ -37,10 +37,12 @@ export async function submitGameReview(
   const event = await getActiveEvent();
   const competition = await getCompetitionContext(session.participantId, event.id);
   const modifiers = (session.modifiersJson as ModifierEffects[]) ?? [];
+  const isDrop = session.status === "DROPPED";
   const spins = calculateCasinoSpins({
     modifiers,
     hltbMainHours: session.hltbMainHours,
     competition,
+    isDrop,
   });
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -48,7 +50,7 @@ export async function submitGameReview(
       where: {
         id: sessionId,
         participantId,
-        status: "COMPLETED",
+        status: session.status,
         playerRating: null,
       },
       data: {

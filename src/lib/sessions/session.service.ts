@@ -196,12 +196,18 @@ export async function acknowledgeSession(participantId: string) {
   });
   if (!participant) throw notFound("Participant");
 
-  if (participant.status === "COMPLETED" && participant.currentSessionId) {
+  if (
+    (participant.status === "COMPLETED" || participant.status === "DROPPED") &&
+    participant.currentSessionId
+  ) {
     const pending = await prisma.gameSession.findUnique({
       where: { id: participant.currentSessionId },
       select: { status: true, playerRating: true },
     });
-    if (pending?.status === "COMPLETED" && pending.playerRating == null) {
+    if (
+      (pending?.status === "COMPLETED" || pending?.status === "DROPPED") &&
+      pending.playerRating == null
+    ) {
       throw badRequest("Submit a game review before continuing");
     }
   }
@@ -244,7 +250,9 @@ export function formatSessionPublic(session: SessionWithRelations | (SessionWith
     dropPenalty: session.dropPenalty,
     playerRating: session.playerRating,
     playerReview: session.playerReview,
-    needsReview: session.status === "COMPLETED" && session.playerRating == null,
+    needsReview:
+      (session.status === "COMPLETED" || session.status === "DROPPED") &&
+      session.playerRating == null,
     scoreBreakdown: session.scoreBreakdown,
     game: {
       title: session.catalogGame.title,

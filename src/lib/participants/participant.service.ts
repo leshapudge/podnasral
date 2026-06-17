@@ -15,6 +15,7 @@ import {
 import { EVENT_STREAMERS } from "@/lib/event/event-roster";
 import { assignCompetitionRanks } from "./leaderboard-ranks";
 import { authorizedParticipantsWhere, authorizedStreamerUserFilter } from "./authorized-streamer";
+import { syncTwitchLiveStatus } from "@/lib/twitch/twitch.service";
 
 function buildCurrentGameStats(params: {
   hltbMainHours: number | null | undefined;
@@ -77,7 +78,7 @@ function mapParticipantToEntry(
     avatar: p.user.image,
     totalPoints: p.totalPoints,
     status: p.status,
-    isLive: p.isLive && p.status !== "PAUSED",
+    isLive: p.isLive,
     currentGame:
       gamesEnabled && session
         ? {
@@ -95,7 +96,16 @@ function mapParticipantToEntry(
   };
 }
 
+async function refreshTwitchLiveForEvent(eventId: string) {
+  try {
+    return await syncTwitchLiveStatus({ eventId });
+  } catch {
+    return [];
+  }
+}
+
 export async function getLeaderboard(eventId: string) {
+  await refreshTwitchLiveForEvent(eventId);
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   const gamesEnabled = event?.status === "ACTIVE";
 
@@ -117,6 +127,7 @@ export async function getLeaderboard(eventId: string) {
 
 /** Полный пул стримеров сезона — вкладка «Стримеры» (включая ещё не вошедших). */
 export async function getStreamersRoster(eventId: string) {
+  await refreshTwitchLiveForEvent(eventId);
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   const gamesEnabled = event?.status === "ACTIVE";
 
@@ -228,6 +239,9 @@ export async function getParticipantProfile(participantId: string) {
 export async function getParticipantPublicDetail(participantId: string) {
   const participant = await getParticipantProfile(participantId);
   if (!participant) return null;
+  const liveUpdates = await refreshTwitchLiveForEvent(participant.eventId);
+  const liveByParticipantId = new Map(liveUpdates.map((u) => [u.participantId, u.isLive]));
+  const isLive = liveByParticipantId.get(participant.id) ?? participant.isLive;
 
   const event = await prisma.event.findUnique({ where: { id: participant.eventId } });
   const gamesEnabled = event?.status === "ACTIVE";
@@ -291,7 +305,7 @@ export async function getParticipantPublicDetail(participantId: string) {
     avatar: participant.user.image,
     totalPoints: participant.totalPoints,
     status: participant.status,
-    isLive: participant.isLive && participant.status !== "PAUSED",
+    isLive,
     eventStatus: event?.status ?? "UPCOMING",
     eventStartsAt: event?.startsAt.toISOString() ?? null,
     currentGame: gamesEnabled && session
@@ -347,14 +361,21 @@ export async function getParticipantPublicDetail(participantId: string) {
       playerReview: s.playerReview,
     })),
     completedGames: participant.gameSessions
-      .filter((s) => s.status === "COMPLETED" && s.playerRating != null && s.playerReview)
+      .filter(
+        (s) =>
+          (s.status === "COMPLETED" || s.status === "DROPPED") &&
+          s.playerRating != null &&
+          s.playerReview,
+      )
       .map((s) => ({
         id: s.id,
         title: s.catalogGame.title,
         cover: resolveGameCover(s.catalogGame.title, s.catalogGame.coverImage),
         rating: s.playerRating!,
         review: s.playerReview!,
+        status: s.status,
         finalScore: s.finalScore,
+        dropPenalty: s.dropPenalty,
         difficulty: s.difficulty,
         playTimeMs: Number(s.activePlayMs ?? 0),
         completedAt: s.completedAt?.toISOString() ?? null,

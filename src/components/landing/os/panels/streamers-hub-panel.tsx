@@ -40,8 +40,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 function sortStreamers(list: StreamerRosterEntry[]) {
   return [...list].sort((a, b) => {
-    const aLive = a.isLive && a.status !== "PAUSED";
-    const bLive = b.isLive && b.status !== "PAUSED";
+    const aLive = a.isLive;
+    const bLive = b.isLive;
     if (aLive !== bLive) return aLive ? -1 : 1;
     return a.displayOrder - b.displayOrder;
   });
@@ -214,16 +214,14 @@ export function StreamersHubPanel({
               Участники
             </h2>
             <p className="mt-1 text-[10px] text-[#5c4a32]">
-              {sorted.filter((s) => s.isLive && s.status !== "PAUSED").length} в эфире ·{" "}
-              {sorted.length} всего
+              {sorted.filter((s) => s.isLive).length} в эфире · {sorted.length} всего
             </p>
           </div>
           <ul className="os-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {sorted.map((s) => {
               const active = s.id === selectedId;
               const statusText = getStreamerStatusText(s, eventUpcoming);
-              // На паузе стример показывается как оффлайн по запросу UX.
-              const streamerLive = s.isLive && s.status !== "PAUSED";
+              const streamerLive = s.isLive;
               return (
                 <li key={s.id}>
                   <button
@@ -315,7 +313,7 @@ export function StreamersHubPanel({
               {selectedListItem.twitchLogin && (
                 <TwitchStreamButton
                   login={selectedListItem.twitchLogin}
-                  isLive={selectedListItem.isLive && selectedListItem.status !== "PAUSED"}
+                  isLive={selectedListItem.isLive}
                   variant="icon"
                   className="absolute right-0 top-0 h-7 w-7"
                 />
@@ -348,7 +346,7 @@ export function StreamersHubPanel({
               {detail.twitchLogin && (
                 <TwitchStreamButton
                   login={detail.twitchLogin}
-                  isLive={detail.isLive && detail.status !== "PAUSED"}
+                  isLive={detail.isLive}
                   variant="icon"
                   className="absolute right-0 top-0 h-7 w-7"
                 />
@@ -366,7 +364,7 @@ export function StreamersHubPanel({
                 <div className="min-w-0 flex-1 text-center sm:text-left">
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                     <h3 className="font-display text-xl text-[#e8d5b0]">{detail.nickname}</h3>
-                    {detail.isLive && detail.status !== "PAUSED" && (
+                    {detail.isLive && (
                       <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/15 px-2 py-0.5 text-[10px] uppercase text-primary">
                         <Circle className="h-2 w-2 fill-current" />
                         В эфире
@@ -438,11 +436,11 @@ export function StreamersHubPanel({
 
               {detailTab === "completed" && (
                 <section className="rounded border border-[#1a1208] bg-[#1a1208]/50 p-4">
-                  <OsSectionTitle className="!mt-0">Пройденные игры</OsSectionTitle>
+                  <OsSectionTitle className="!mt-0">Пройденные и дропнутые</OsSectionTitle>
                   {detail.completedGames.length === 0 ? (
                     <p className="mt-3 text-sm text-[#7a6a52]">
-                      Пока нет игр с отзывом — после прохождения стример ставит оценку и пишет
-                      впечатления.
+                      Пока нет игр с отзывом — после завершения или дропа стример ставит оценку и
+                      пишет впечатления.
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-3">
@@ -462,17 +460,41 @@ export function StreamersHubPanel({
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-start justify-between gap-2">
-                                <p className="font-display text-base text-[#e8d5b0]">
-                                  {game.title}
-                                </p>
+                                <div className="min-w-0">
+                                  <p className="font-display text-base text-[#e8d5b0]">
+                                    {game.title}
+                                  </p>
+                                  <span
+                                    className={cn(
+                                      "mt-1 inline-flex rounded border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                                      game.status === "DROPPED"
+                                        ? "border-mc-redstone/40 bg-mc-redstone/10 text-mc-redstone"
+                                        : "border-primary/40 bg-primary/10 text-primary",
+                                    )}
+                                  >
+                                    {game.status === "DROPPED" ? "Дропнута" : "Пройдена"}
+                                  </span>
+                                </div>
                                 <StarRatingDisplay rating={game.rating} size="md" />
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
-                                {game.finalScore != null && (
+                                {game.status === "COMPLETED" &&
+                                  game.finalScore != null &&
+                                  game.finalScore > 0 && (
                                   <span className="inline-flex items-center gap-1.5 rounded border border-hypixel-gold/30 bg-hypixel-gold/10 px-2.5 py-1">
                                     <Trophy className="h-3.5 w-3.5 text-hypixel-gold" />
                                     <span className="font-display text-sm text-hypixel-gold">
                                       +{formatNumber(game.finalScore)} очков
+                                    </span>
+                                  </span>
+                                )}
+                                {game.status === "DROPPED" &&
+                                  game.dropPenalty != null &&
+                                  game.dropPenalty > 0 && (
+                                  <span className="inline-flex items-center gap-1.5 rounded border border-mc-redstone/30 bg-mc-redstone/10 px-2.5 py-1">
+                                    <Trophy className="h-3.5 w-3.5 text-mc-redstone" />
+                                    <span className="font-display text-sm text-mc-redstone">
+                                      -{formatNumber(game.dropPenalty)} штраф
                                     </span>
                                   </span>
                                 )}

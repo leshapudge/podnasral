@@ -154,7 +154,9 @@ export interface ParticipantDetail {
     cover: string | null;
     rating: number;
     review: string;
+    status: "COMPLETED" | "DROPPED";
     finalScore: number | null;
+    dropPenalty: number | null;
     difficulty: string | null;
     playTimeMs: number | null;
     completedAt: string | null;

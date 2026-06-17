@@ -880,10 +880,12 @@ export function StreamerPanel() {
                     </div>
                   )}
 
-                  {status === "COMPLETED" && session?.needsReview && (
+                  {(status === "COMPLETED" || status === "DROPPED") && session?.needsReview && (
                     <GameReviewForm
                       gameTitle={session.game.title}
+                      mode={status === "DROPPED" ? "dropped" : "completed"}
                       finalScore={session.finalScore}
+                      dropPenalty={session.dropPenalty}
                       loading={loading}
                       onSubmit={(rating, review) =>
                         runAction(() => api.submitSessionReview(session.id, rating, review))
@@ -906,7 +908,7 @@ export function StreamerPanel() {
                     />
                   )}
 
-                  {status === "DROPPED" && (
+                  {status === "DROPPED" && !session?.needsReview && (
                     <div className="space-y-4 text-center">
                       {session.dropPenalty != null && session.dropPenalty > 0 && (
                         <p className="font-display text-xl text-mc-redstone">

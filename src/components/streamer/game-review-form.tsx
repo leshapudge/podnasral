@@ -5,14 +5,18 @@ import { StarRatingInput } from "./star-rating";
 
 interface GameReviewFormProps {
   gameTitle: string;
+  mode?: "completed" | "dropped";
   finalScore?: number | null;
+  dropPenalty?: number | null;
   loading?: boolean;
   onSubmit: (rating: number, review: string) => void | Promise<void>;
 }
 
 export function GameReviewForm({
   gameTitle,
+  mode = "completed",
   finalScore,
+  dropPenalty,
   loading,
   onSubmit,
 }: GameReviewFormProps) {
@@ -25,11 +29,14 @@ export function GameReviewForm({
     <div className="mx-auto max-w-lg space-y-5 rounded-lg border border-hypixel-gold/30 bg-[#1a1208]/60 p-5">
       <div className="text-center">
         <p className="font-display text-xs uppercase tracking-widest text-[#a89070]">
-          Игра пройдена
+          {mode === "dropped" ? "Игра дропнута" : "Игра пройдена"}
         </p>
         <h3 className="mt-1 font-display text-lg text-[#e8d5b0]">{gameTitle}</h3>
-        {finalScore != null && finalScore > 0 && (
+        {mode === "completed" && finalScore != null && finalScore > 0 && (
           <p className="mt-2 font-display text-2xl text-hypixel-gold">+{finalScore} очков</p>
+        )}
+        {mode === "dropped" && dropPenalty != null && dropPenalty > 0 && (
+          <p className="mt-2 font-display text-2xl text-mc-redstone">−{dropPenalty} штраф</p>
         )}
       </div>
 
@@ -68,7 +75,9 @@ export function GameReviewForm({
         disabled={!canSubmit}
         onClick={() => void onSubmit(rating, review.trim())}
       >
-        Отправить отзыв и открыть казино
+        {mode === "dropped"
+          ? "Отправить отзыв и открыть слот за дроп"
+          : "Отправить отзыв и открыть казино"}
       </button>
     </div>
   );

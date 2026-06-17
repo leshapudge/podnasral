@@ -9,7 +9,6 @@ import {
   type ModifierEffects,
 } from "@/lib/scoring/score-calculator";
 import { getElapsedMs } from "./timer";
-import { grantCasinoSpins } from "@/lib/casino/casino.service";
 import { logActivity } from "@/lib/activity/activity.service";
 
 export async function dropSession(session: GameSession & { catalogGame?: { title: string } }) {
@@ -65,7 +64,7 @@ export async function dropSession(session: GameSession & { catalogGame?: { title
 
     await tx.participant.update({
       where: { id: session.participantId },
-      data: { totalPoints: nextPoints },
+      data: { totalPoints: nextPoints, status: "DROPPED" },
     });
 
     return updated;
@@ -99,8 +98,6 @@ export async function dropSession(session: GameSession & { catalogGame?: { title
     }
   }
 
-  const casinoSpins = await grantCasinoSpins(result, { isDrop: true });
-
   await logActivity({
     eventId: event.id,
     type: "GAME_DROPPED",
@@ -109,9 +106,8 @@ export async function dropSession(session: GameSession & { catalogGame?: { title
       gameTitle: session.catalogGame?.title,
       penalty,
       boomerangRefund: combined.dropRefundMaterial ?? false,
-      casinoSpins,
     },
   });
 
-  return { session: result, penalty, casinoSpins };
+  return { session: result, penalty };
 }
