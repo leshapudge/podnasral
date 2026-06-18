@@ -4,7 +4,7 @@ import {
   type HowLongToBeatEntry,
 } from "howlongtobeat-ts";
 
-const hltb = new HowLongToBeatService(0.4);
+const hltb = new HowLongToBeatService(0.35);
 
 export interface HltbEntry {
   gameId: number;
@@ -29,6 +29,14 @@ function mapEntry(entry: HowLongToBeatEntry): HltbEntry {
   };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runHltbSearch(title: string) {
+  return hltb.search(title, SearchModifier.HIDE_DLC);
+}
+
 export async function searchHltb(
   title: string,
   options?: { preferId?: number },
@@ -36,23 +44,38 @@ export async function searchHltb(
   const query = title.trim();
   if (!query) return null;
 
-  try {
-    const result = await hltb.search(query, SearchModifier.HIDE_DLC);
-    if (!result.success || !result.data.length) {
-      if (result.error) console.warn("[HLTB] search:", result.error);
-      return null;
-    }
+  let lastError: unknown = null;
 
-    if (options?.preferId) {
-      const exact = result.data.find((entry) => entry.id === options.preferId);
-      if (exact) return mapEntry(exact);
-    }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = await runHltbSearch(query);
+      if (!result.success || !result.data.length) {
+        if (result.error) console.warn("[HLTB] search:", result.error);
+        if (attempt === 0) {
+          await sleep(400);
+          continue;
+        }
+        return null;
+      }
 
-    return mapEntry(result.data[0]);
-  } catch (error) {
-    console.error("[HLTB] search failed:", error);
-    return null;
+      if (options?.preferId) {
+        const exact = result.data.find((entry) => entry.id === options.preferId);
+        if (exact) return mapEntry(exact);
+      }
+
+      const withMainTime = result.data.find((entry) => (entry.mainTime ?? 0) > 0);
+      return mapEntry(withMainTime ?? result.data[0]);
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) {
+        await sleep(400);
+        continue;
+      }
+    }
   }
+
+  console.error("[HLTB] search failed:", lastError);
+  return null;
 }
 
 export async function getHltbById(hltbId: number, title?: string): Promise<HltbEntry | null> {
