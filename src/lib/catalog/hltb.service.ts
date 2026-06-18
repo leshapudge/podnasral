@@ -1,6 +1,10 @@
-import { HowLongToBeatService } from "howlongtobeat";
+import {
+  HowLongToBeatService,
+  SearchModifier,
+  type HowLongToBeatEntry,
+} from "howlongtobeat-ts";
 
-const hltb = new HowLongToBeatService();
+const hltb = new HowLongToBeatService(0.4);
 
 export interface HltbEntry {
   gameId: number;
@@ -10,42 +14,48 @@ export interface HltbEntry {
   gameplayCompletionist: number;
 }
 
-function mapEntry(entry: {
-  id: string;
-  name: string;
-  gameplayMain: number;
-  gameplayMainExtra: number;
-  gameplayCompletionist: number;
-}): HltbEntry {
+function secondsToHours(seconds: number | undefined) {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) return 0;
+  return seconds / 3600;
+}
+
+function mapEntry(entry: HowLongToBeatEntry): HltbEntry {
   return {
-    gameId: parseInt(entry.id, 10),
+    gameId: entry.id,
     name: entry.name,
-    gameplayMain: entry.gameplayMain,
-    gameplayMainExtra: entry.gameplayMainExtra,
-    gameplayCompletionist: entry.gameplayCompletionist,
+    gameplayMain: secondsToHours(entry.mainTime),
+    gameplayMainExtra: secondsToHours(entry.mainExtraTime),
+    gameplayCompletionist: secondsToHours(entry.completionistTime),
   };
 }
 
-export async function searchHltb(title: string): Promise<HltbEntry | null> {
+export async function searchHltb(
+  title: string,
+  options?: { preferId?: number },
+): Promise<HltbEntry | null> {
+  const query = title.trim();
+  if (!query) return null;
+
   try {
-    const results = await hltb.search(title);
-    if (!results?.length) return null;
-    const best = results.reduce((a, b) => (b.similarity > a.similarity ? b : a));
-    if (best.similarity < 0.4) return null;
-    return mapEntry(best);
+    const result = await hltb.search(query, SearchModifier.HIDE_DLC);
+    if (!result.success || !result.data.length) {
+      if (result.error) console.warn("[HLTB] search:", result.error);
+      return null;
+    }
+
+    if (options?.preferId) {
+      const exact = result.data.find((entry) => entry.id === options.preferId);
+      if (exact) return mapEntry(exact);
+    }
+
+    return mapEntry(result.data[0]);
   } catch (error) {
     console.error("[HLTB] search failed:", error);
     return null;
   }
 }
 
-export async function getHltbById(hltbId: number): Promise<HltbEntry | null> {
-  try {
-    const detail = await hltb.detail(String(hltbId));
-    if (!detail) return null;
-    return mapEntry(detail);
-  } catch (error) {
-    console.error("[HLTB] detail failed:", error);
-    return null;
-  }
+export async function getHltbById(hltbId: number, title?: string): Promise<HltbEntry | null> {
+  if (!title?.trim()) return null;
+  return searchHltb(title, { preferId: hltbId });
 }

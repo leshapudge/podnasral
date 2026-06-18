@@ -104,6 +104,13 @@ function normalizeHltbMainHours(hours: number | null | undefined) {
   return hours;
 }
 
+function resolveGameMainHours(
+  catalogHours: number | null | undefined,
+  rawgPlaytime: number | null | undefined,
+) {
+  return normalizeHltbMainHours(catalogHours) ?? normalizeHltbMainHours(rawgPlaytime);
+}
+
 function hasGenreMatch(gameGenres: string[], requiredGenres: string[]) {
   if (requiredGenres.length === 0) return true;
   return gameGenres.some((genre) => requiredGenres.includes(genre));
@@ -384,12 +391,15 @@ export async function searchAuctionGames(
   const withCatalog = await Promise.all(
     rawgTop.map(async (rawgGame) => {
       let catalog = existingByRawgId.get(rawgGame.id) ?? null;
-      if (!catalog || !catalog.mainStoryHours || !catalog.hltbSyncedAt) {
+      if (!catalog || !normalizeHltbMainHours(catalog.mainStoryHours)) {
         catalog = await syncCatalogGameFromRawg(rawgGame.id).catch(() => catalog);
       }
       if (!catalog) return null;
 
-      const mainStoryHours = normalizeHltbMainHours(catalog.mainStoryHours);
+      const mainStoryHours = resolveGameMainHours(
+        catalog.mainStoryHours,
+        rawgGame.playtime,
+      );
       if (!mainStoryHours) return null;
       const genres = (rawgGame.genres ?? [])
         .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
@@ -603,7 +613,7 @@ export async function startAuction(auctionId: string, participantId: string) {
   if (!winner) throw badRequest("Selected game not found");
   const winnerMainStoryHours = normalizeHltbMainHours(winner.mainStoryHours);
   if (!winnerMainStoryHours) {
-    throw badRequest("У выбранной игры нет данных HLTB. Выберите другую игру.");
+    throw badRequest("У выбранной игры нет данных по времени прохождения. Выберите другую игру.");
   }
 
   const event = await getActiveEvent();
@@ -763,7 +773,7 @@ export async function resolveAuctionFromDonations(
 
   const mainStoryHours = normalizeHltbMainHours(selectedMainStoryHours);
   if (!mainStoryHours) {
-    throw badRequest("Для этой игры нет данных HLTB. Выберите игру с доступным HLTB.");
+    throw badRequest("Для этой игры нет данных по времени прохождения. Выберите другую игру.");
   }
 
   const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];

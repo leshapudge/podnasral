@@ -1,8 +1,18 @@
 import type { CatalogGame } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { notFound } from "@/lib/api/errors";
-import { searchHltb, getHltbById } from "./hltb.service";
+import { searchHltb } from "./hltb.service";
 import { getRawgGameById } from "./rawg.service";
+
+function normalizeHours(hours: number | null | undefined) {
+  if (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0) return null;
+  return hours;
+}
+
+function normalizeRawgPlaytime(playtime: number | null | undefined) {
+  if (typeof playtime !== "number" || !Number.isFinite(playtime) || playtime <= 0) return null;
+  return playtime;
+}
 
 function slugify(text: string): string {
   return text
@@ -22,7 +32,7 @@ export async function findCatalogGameById(id: string) {
 
 export async function syncCatalogGameFromRawg(rawgId: number): Promise<CatalogGame> {
   const existing = await findCatalogGameByRawgId(rawgId);
-  if (existing?.hltbSyncedAt && existing.mainStoryHours) {
+  if (existing && normalizeHours(existing.mainStoryHours)) {
     return existing;
   }
 
@@ -30,6 +40,13 @@ export async function syncCatalogGameFromRawg(rawgId: number): Promise<CatalogGa
   if (!rawg) throw notFound("RAWG game");
 
   const hltb = await searchHltb(rawg.name);
+  const rawgPlaytimeFallback = normalizeRawgPlaytime(rawg.playtime);
+  const existingMainHours = normalizeHours(existing?.mainStoryHours);
+  const existingMainExtra = normalizeHours(existing?.mainExtraHours);
+  const existingCompletionist = normalizeHours(existing?.completionistHours);
+  const hltbMain = normalizeHours(hltb?.gameplayMain);
+  const hltbMainExtra = normalizeHours(hltb?.gameplayMainExtra);
+  const hltbCompletionist = normalizeHours(hltb?.gameplayCompletionist);
 
   const data = {
     rawgId,
@@ -37,9 +54,10 @@ export async function syncCatalogGameFromRawg(rawgId: number): Promise<CatalogGa
     title: rawg.name,
     slug: rawg.slug || slugify(rawg.name),
     coverImage: rawg.background_image ?? null,
-    mainStoryHours: hltb?.gameplayMain ?? existing?.mainStoryHours ?? null,
-    mainExtraHours: hltb?.gameplayMainExtra ?? existing?.mainExtraHours ?? null,
-    completionistHours: hltb?.gameplayCompletionist ?? existing?.completionistHours ?? null,
+    // Fallback to RAWG playtime when HLTB is temporarily unavailable.
+    mainStoryHours: hltbMain ?? existingMainHours ?? rawgPlaytimeFallback ?? null,
+    mainExtraHours: hltbMainExtra ?? existingMainExtra ?? null,
+    completionistHours: hltbCompletionist ?? existingCompletionist ?? null,
     hltbSyncedAt: hltb ? new Date() : existing?.hltbSyncedAt ?? null,
   };
 
@@ -60,7 +78,7 @@ export async function syncGameHltb(catalogGameId: string) {
   const game = await prisma.catalogGame.findUnique({ where: { id: catalogGameId } });
   if (!game) throw notFound("Game");
 
-  const hltb = game.hltbId ? await getHltbById(game.hltbId) : await searchHltb(game.title);
+  const hltb = await searchHltb(game.title, game.hltbId ? { preferId: game.hltbId } : undefined);
   if (!hltb) return game;
 
   return prisma.catalogGame.update({

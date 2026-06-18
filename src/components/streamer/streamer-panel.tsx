@@ -602,8 +602,9 @@ export function StreamerPanel() {
                     ) : null}
                     {auctionSearch.missingHltbCount > 0 ? (
                       <p className="mb-3 text-xs text-[#df8b73]">
-                        Скрыто без HLTB: {auctionSearch.missingHltbCount}. Для честного подсчета
-                        очков показываются только игры с данными HLTB.
+                        Скрыто без данных по времени: {auctionSearch.missingHltbCount}. В выдачу
+                        попадают только игры, где удалось получить часы прохождения (HLTB или
+                        fallback из RAWG).
                       </p>
                     ) : null}
                     {selectedAuctionGame ? (
@@ -690,7 +691,8 @@ export function StreamerPanel() {
                   </>
                 ) : (
                   <p className="text-xs text-[#7a6a52]">
-                    Введи название игры, чтобы появились всплывающие подсказки из RAWG + HLTB.
+                    Введи название игры, чтобы появились всплывающие подсказки из RAWG + данные по
+                    времени.
                   </p>
                 )}
               </section>
