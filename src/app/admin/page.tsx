@@ -10,6 +10,7 @@ import {
   type GameSearchResult,
   type ParticipantDetail,
 } from "@/lib/api/client";
+import { formatDurationMs, formatHltbHours } from "@/lib/utils/time";
 
 const STATUS_LABELS: Record<string, string> = {
   IDLE: "Между играми",
@@ -41,13 +42,8 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GameSearchResult[]>([]);
   const [rawgId, setRawgId] = useState("");
-  const [pseudoDonor, setPseudoDonor] = useState("Admin");
-  const [pseudoAmount, setPseudoAmount] = useState("100");
-  const [pseudoCurrency, setPseudoCurrency] = useState("RUB");
-  const [pseudoMessage, setPseudoMessage] = useState("");
-  const [pseudoGameQuery, setPseudoGameQuery] = useState("");
-  const [pseudoRawgId, setPseudoRawgId] = useState("");
   const [message, setMessage] = useState("");
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   const groupedInventory = useMemo(() => {
     const grouped = new Map<
@@ -85,6 +81,14 @@ export default function AdminPage() {
   const selectedCatalogItem = useMemo(
     () => itemCatalog.find((item) => item.id === selectedItemId) ?? null,
     [itemCatalog, selectedItemId],
+  );
+
+  const finishedGames = useMemo(
+    () =>
+      (participantDetail?.history ?? []).filter(
+        (session) => session.status === "COMPLETED" || session.status === "DROPPED",
+      ),
+    [participantDetail],
   );
 
   async function load() {
@@ -267,32 +271,32 @@ export default function AdminPage() {
     await adjustInventory(-amount, selectedCatalogItem.id);
   }
 
-  async function createPseudoDonation() {
-    const amount = Number(pseudoAmount);
-    if (!Number.isFinite(amount) || amount < 0) {
-      setMessage("Некорректная сумма доната");
+  async function deleteFinishedGame(sessionId: string, gameTitle: string) {
+    if (!selectedParticipantId) {
+      setMessage("Сначала выбери участника");
       return;
     }
-    if (!selectedParticipantId) {
-      setMessage("Выбери стримера для псевдо-доната");
+    if (
+      !window.confirm(
+        `Удалить «${gameTitle}» из истории? Очки за эту игру будут пересчитаны.`,
+      )
+    ) {
       return;
     }
 
+    setDeletingSessionId(sessionId);
     try {
-      await api.admin.createPseudoDonation({
-        participantId: selectedParticipantId,
-        donorName: pseudoDonor.trim() || "Admin",
-        amount,
-        currency: pseudoCurrency.trim() || "RUB",
-        message: pseudoMessage.trim() || undefined,
-        gameQuery: pseudoGameQuery.trim() || undefined,
-        rawgId: pseudoRawgId ? Number(pseudoRawgId) : undefined,
-      });
-      setMessage("Псевдо-донат отправлен");
-      setPseudoMessage("");
-      load();
+      const result = await api.admin.deleteFinishedSession(selectedParticipantId, sessionId);
+      setMessage(
+        `Удалено: ${result.gameTitle}. Очки участника: ${result.totalPoints}${
+          result.pointsDelta !== 0 ? ` (${result.pointsDelta > 0 ? "+" : ""}${result.pointsDelta})` : ""
+        }`,
+      );
+      await Promise.all([load(), refreshParticipantDetail()]);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Не удалось отправить псевдо-донат");
+      setMessage(e instanceof Error ? e.message : "Не удалось удалить игру");
+    } finally {
+      setDeletingSessionId(null);
     }
   }
 
@@ -516,6 +520,51 @@ export default function AdminPage() {
                     ) : null}
                   </ul>
                 </div>
+
+                <div className="rounded border border-[#2a1d10] bg-[#120d07]/80 p-4">
+                  <h3 className="mb-3 text-xs uppercase tracking-wider text-[#a89070]">
+                    Пройденные игры ({finishedGames.length})
+                  </h3>
+                  <ul className="max-h-72 space-y-2 overflow-y-auto pr-1 text-sm">
+                    {finishedGames.map((session) => (
+                      <li
+                        key={session.id}
+                        className="rounded border border-[#2a1d10] px-3 py-2 text-[#d6c3a1]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[#e8d5b0]">{session.game}</div>
+                            <div className="text-xs text-[#9e8a6b]">
+                              {session.status === "DROPPED" ? "Дроп" : "Пройдена"}
+                              {session.difficulty ? ` • ${session.difficulty}` : ""}
+                              {session.playTimeMs != null
+                                ? ` • ${formatDurationMs(session.playTimeMs)}`
+                                : ""}
+                              {session.finalScore != null ? ` • ${session.finalScore} очков` : ""}
+                              {session.dropPenalty != null && session.dropPenalty > 0
+                                ? ` • штраф ${session.dropPenalty}`
+                                : ""}
+                              {session.playerRating != null ? ` • оценка ${session.playerRating}/10` : ""}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="mc-os-btn shrink-0 px-3 py-1 text-[10px] text-[#df8b73]"
+                            disabled={deletingSessionId === session.id}
+                            onClick={() => deleteFinishedGame(session.id, session.game)}
+                          >
+                            {deletingSessionId === session.id ? "..." : "Удалить"}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                    {finishedGames.length === 0 ? (
+                      <li className="rounded border border-dashed border-[#3a2a16] p-3 text-xs text-[#a89070]">
+                        Завершённых игр нет.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
               </>
             ) : (
               <div className="rounded border border-dashed border-[#3a2a16] p-4 text-sm text-[#a89070]">
@@ -551,16 +600,6 @@ export default function AdminPage() {
                 <button type="button" className="mc-os-btn px-2 py-1 text-[10px]" onClick={() => addGame(g.rawgId, g.title)}>
                   + В пул
                 </button>
-                <button
-                  type="button"
-                  className="mc-os-btn px-2 py-1 text-[10px]"
-                  onClick={() => {
-                    setPseudoRawgId(String(g.rawgId));
-                    setPseudoGameQuery(g.title);
-                  }}
-                >
-                  В псевдо-донат
-                </button>
               </div>
             </li>
           ))}
@@ -584,78 +623,14 @@ export default function AdminPage() {
 
       <section className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-6">
         <h2 className="mb-4 font-display text-sm uppercase tracking-widest text-[#a89070]">
-          Псевдо-донат
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <select
-            value={selectedParticipantId}
-            onChange={(e) => setSelectedParticipantId(e.target.value)}
-            className="sm:col-span-2 border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          >
-            {participants.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.user.twitchLogin ?? p.user.name ?? p.id}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Донатер"
-            value={pseudoDonor}
-            onChange={(e) => setPseudoDonor(e.target.value)}
-            className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-          <input
-            type="number"
-            placeholder="Сумма"
-            value={pseudoAmount}
-            onChange={(e) => setPseudoAmount(e.target.value)}
-            className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-          <input
-            type="text"
-            placeholder="Валюта (RUB)"
-            value={pseudoCurrency}
-            onChange={(e) => setPseudoCurrency(e.target.value)}
-            className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-          <input
-            type="number"
-            placeholder="RAWG ID (необязательно)"
-            value={pseudoRawgId}
-            onChange={(e) => setPseudoRawgId(e.target.value)}
-            className="border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-          <input
-            type="text"
-            placeholder="Название игры (необязательно)"
-            value={pseudoGameQuery}
-            onChange={(e) => setPseudoGameQuery(e.target.value)}
-            className="sm:col-span-2 border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-          <textarea
-            placeholder='Сообщение доната (можно "game: название")'
-            value={pseudoMessage}
-            onChange={(e) => setPseudoMessage(e.target.value)}
-            className="sm:col-span-2 min-h-20 border border-[#1a1208] bg-[#0d0a08] px-3 py-2 text-[#e8d5b0]"
-          />
-        </div>
-        <div className="mt-3 flex justify-end">
-          <button type="button" className="mc-os-btn px-4 py-2 text-xs" onClick={createPseudoDonation}>
-            Отправить псевдо-донат
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded border border-[#1a1208] bg-[#1a1208]/60 p-6">
-        <h2 className="mb-4 font-display text-sm uppercase tracking-widest text-[#a89070]">
           Пул ({pool.length})
         </h2>
         <ul className="text-sm space-y-1 max-h-60 overflow-y-auto">
           {pool.map((p, i) => (
             <li key={i}>
               {p.catalogGame.title}
-              {p.catalogGame.mainStoryHours != null && ` (${p.catalogGame.mainStoryHours}ч)`}
+              {p.catalogGame.mainStoryHours != null &&
+                ` (${formatHltbHours(p.catalogGame.mainStoryHours)})`}
             </li>
           ))}
         </ul>

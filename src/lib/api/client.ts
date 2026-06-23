@@ -606,6 +606,15 @@ export const api = {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+    deleteFinishedSession: (participantId: string, sessionId: string) =>
+      request<{
+        sessionId: string;
+        gameTitle: string;
+        pointsDelta: number;
+        totalPoints: number;
+      }>(`${API}/admin/participants/${participantId}/sessions/${sessionId}`, {
+        method: "DELETE",
+      }),
     createPseudoDonation: (payload: {
       participantId: string;
       donorName: string;

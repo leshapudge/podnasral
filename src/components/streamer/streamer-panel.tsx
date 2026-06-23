@@ -36,6 +36,7 @@ import {
   type MeData,
 } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
+import { formatHltbHours } from "@/lib/utils/time";
 
 type StreamerTab = "game" | "inventory" | "craft";
 type AuctionSearchGame = AuctionGameSearchData["games"][number];
@@ -531,7 +532,8 @@ export function StreamerPanel() {
                             >
                               <span className="block truncate">{game.title}</span>
                               <span className="block text-[11px] text-[#8d7a62]">
-                                Main Story {game.mainStoryHours}ч · {game.projectedBaseScore} очков
+                                Main Story {formatHltbHours(game.mainStoryHours)} ·{" "}
+                                {game.projectedBaseScore} очков
                               </span>
                             </button>
                           </li>
@@ -629,7 +631,7 @@ export function StreamerPanel() {
                               {selectedAuctionGame.title}
                             </p>
                             <p className="text-xs text-[#a89070]">
-                              Main Story {selectedAuctionGame.mainStoryHours}ч · ~
+                              Main Story {formatHltbHours(selectedAuctionGame.mainStoryHours)} · ~
                               {selectedAuctionGame.projectedBaseScore} очков
                             </p>
                           </div>
@@ -686,7 +688,7 @@ export function StreamerPanel() {
               <section className="rounded-lg border border-[#1a1208] bg-[#14100c]/80 p-5">
                 <OsSectionTitle>Игра выбрана: {resolvedAuctionGame.title}</OsSectionTitle>
                 <p className="mb-2 text-xs text-[#7a6a52]">
-                  HLTB: {resolvedAuctionGame.mainStoryHours ?? "—"} ч
+                  HLTB: {formatHltbHours(resolvedAuctionGame.mainStoryHours)}
                 </p>
                 <p className="mb-3 text-xs text-[#7a6a52]">
                   Теперь можешь выбрать любые модификаторы и начать игру.
@@ -763,7 +765,7 @@ export function StreamerPanel() {
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <h2 className="font-display text-lg text-[#e8d5b0]">{session.game.title}</h2>
                     <p className="text-xs text-[#7a6a52]">
-                      HLTB {session.hltbMainHours}ч
+                      HLTB {formatHltbHours(session.hltbMainHours)}
                       {session.difficulty ? ` · ${session.difficulty}` : ""}
                     </p>
                   </div>

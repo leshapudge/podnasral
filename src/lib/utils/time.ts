@@ -40,12 +40,11 @@ export function formatDurationMs(ms: number): string {
   return `${m}м`;
 }
 
-export function formatHltbHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h > 0 && m > 0) return `${h}ч ${m}м`;
-  if (h > 0) return `${h}ч`;
-  return `${m}м`;
+export function formatHltbHours(hours: number | null | undefined): string {
+  if (hours == null || !Number.isFinite(hours) || hours <= 0) return "—";
+  const rounded = Math.round(hours * 10) / 10;
+  if (Number.isInteger(rounded)) return `${rounded}ч`;
+  return `${rounded.toFixed(1)}ч`;
 }
 
 export function getSeasonPhase(progress: number): string {
