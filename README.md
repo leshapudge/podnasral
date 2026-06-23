@@ -101,3 +101,15 @@ connectLive((e) => console.log(e.type));
 - `AUTH_URL` / `APP_BASE_URL` — публичный URL приложения
 - `AUTH_TWITCH_ID` / `AUTH_TWITCH_SECRET` — OAuth Twitch
 - `RAWG_API_KEY` — поиск игр в аукционе
+
+## Git: коммиты от leshapudge
+
+Чтобы в GitHub в Contributors был только аккаунт **leshapudge**, в этом репозитории укажи авторство и хук (один раз):
+
+```bash
+git config user.name "leshapudge"
+git config user.email "206715166+leshapudge@users.noreply.github.com"
+git config core.hooksPath .githooks
+```
+
+Email `lesha.ba196@gmail.com` привязан к другому аккаунту — GitHub засчитывает коммиты туда, если писать с него.
