@@ -10,7 +10,6 @@ const footerLinks = {
   Ивент: [
     { label: "Сезон", href: "#season" },
     { label: "Рейтинг", href: "#leaderboard" },
-    { label: "Босс", href: "#boss" },
     { label: "Активность", href: "#activity" },
   ],
   Игра: [

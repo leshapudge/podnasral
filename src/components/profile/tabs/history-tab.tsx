@@ -31,7 +31,7 @@ export function HistoryTab({ history = [] }: HistoryTabProps) {
   if (!history.length) {
     return (
       <p className="text-center text-sm text-muted-foreground">
-        История активности пуста — сыграйте или атакуйте босса
+        История активности пуста — сыграйте игру или завершите аукцион
       </p>
     );
   }

@@ -1,6 +1,6 @@
 # PODNASRAL
 
-Платформа для 14-дневного стримингового ивента. Стримеры соревнуются за очки через аукционы игр, прохождение по HLTB, лут, крафт и мирового босса.
+Платформа для 14-дневного стримингового ивента. Стримеры соревнуются за очки через аукционы игр, прохождение по HLTB, лут и крафт.
 
 ## Стек
 
@@ -61,7 +61,7 @@ npm run dev
 
 ### Публичные эндпоинты
 
-`GET /api/v1/event`, `/leaderboard`, `/boss`, `/feed`, `/live` (SSE), `/participants/:id`, `/games/search?q=`, `/catalog-games`, `/items`, `/craft-recipes`
+`GET /api/v1/event`, `/leaderboard`, `/feed`, `/live` (SSE), `/participants/:id`, `/games/search?q=`, `/catalog-games`, `/items`, `/craft-recipes`
 
 ### Флоу стримера
 
@@ -78,7 +78,6 @@ npm run dev
 | Предметы | `/api/v1/items` |
 | Рецепты крафта | `/api/v1/craft-recipes` |
 | Ингредиенты | `/api/v1/craft-ingredients` |
-| Боссы | `/api/v1/bosses` |
 | Игровые сессии | `/api/v1/game-sessions` |
 | Лог активности | `/api/v1/activity-logs` |
 | Статистика | `/api/v1/admin/stats` |

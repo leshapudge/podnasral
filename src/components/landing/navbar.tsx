@@ -15,7 +15,6 @@ interface NavbarProps {
 const navLinks = [
   { href: "#season", label: "Сезон" },
   { href: "#leaderboard", label: "Рейтинг" },
-  { href: "#boss", label: "Босс" },
   { href: "#activity", label: "Активность" },
 ];
 

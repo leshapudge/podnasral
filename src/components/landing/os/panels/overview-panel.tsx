@@ -40,7 +40,7 @@ export function OverviewPanel({ isAuthenticated, homeData, onTabChange }: Overvi
           <span className="text-hypixel-gold">SEASON</span>
         </h2>
         <p className="mt-2 max-w-xl text-sm text-[#7a6a52]">
-          Стримерский игровой ивент. Играй, крафти, бей боссов и поднимайся в рейтинге силы.
+          Стримерский игровой ивент. Играй, крафти и поднимайся в рейтинге силы.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
           {isAuthenticated ? (

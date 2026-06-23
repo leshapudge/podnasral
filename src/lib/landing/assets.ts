@@ -109,7 +109,7 @@ export const EFFECT_ASSETS: EffectAsset[] = [
 
 export const STAT_ASSETS = [
   { label: "Сезон", value: "67%", image: MC_ASSETS.blocks.grassTop },
-  { label: "Босс", value: "24.8%", image: MC_ASSETS.items.witherSkull },
+  { label: "Аукцион", value: "—", image: MC_ASSETS.items.emerald },
   { label: "Онлайн", value: "2.8K", image: MC_ASSETS.items.experienceBottle },
   { label: "Крафт", value: "42K", image: MC_ASSETS.items.ironPickaxe },
 ] as const;

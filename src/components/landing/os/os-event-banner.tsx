@@ -24,7 +24,7 @@ export function OsEventBanner({ season, className }: OsEventBannerProps) {
         </p>
         <p className="mt-1 text-xs leading-relaxed text-[#7a6a52]">
           {season.daysUntilStart > 0
-            ? `До старта ${season.daysUntilStart} дн. · аукционы, игры и босс откроются вместе с ивентом`
+            ? `До старта ${season.daysUntilStart} дн. · аукционы и игры откроются вместе с ивентом`
             : "Старт сегодня — скоро откроются аукционы и игры"}
         </p>
       </div>

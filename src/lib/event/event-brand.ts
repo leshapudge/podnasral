@@ -7,6 +7,6 @@ export const EVENT_SEED_NAME = `${EVENT_BRAND} 2026`;
 export const EVENT_WORLD_SEED = "PODNASRAL-2026-8406129";
 
 export const EVENT_TAGLINE =
-  "Стримерский игровой ивент в стиле Minecraft. Играй, крафти, бей боссов и поднимайся в рейтинге.";
+  "Стримерский игровой ивент в стиле Minecraft. Играй, крафти и поднимайся в рейтинге.";
 
 export const EVENT_META_TITLE = `${EVENT_BRAND} — Стримерский игровой ивент`;

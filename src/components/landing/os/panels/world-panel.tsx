@@ -30,7 +30,7 @@ export function WorldPanel() {
         </span>
       </OsSectionTitle>
       <p className="mb-3 text-center text-xs text-[#7a6a52] sm:text-left">
-        6 биомов · игроки, боссы, данжи и ивенты
+        6 биомов · игроки, данжи и ивенты
       </p>
       {error && (
         <p className="text-center text-sm text-mc-redstone">Не удалось загрузить карту</p>

@@ -34,7 +34,7 @@ export function WorldMapShell({ data }: WorldMapShellProps) {
           </p>
           <h1 className="font-display text-2xl font-bold sm:text-3xl">Карта мира</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            6 биомов · игроки, боссы, данжи и ивенты в реальном времени
+            6 биомов · игроки, данжи и ивенты в реальном времени
           </p>
         </div>
 
