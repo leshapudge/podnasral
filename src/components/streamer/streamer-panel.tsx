@@ -246,7 +246,7 @@ export function StreamerPanel() {
       });
       setSelectedAuctionGameId((prev) => {
         if (prev && next.games.some((game) => game.catalogGameId === prev)) return prev;
-        return null;
+        return next.games[0]?.catalogGameId ?? null;
       });
       if (next.games.length === 0) {
         setInfo("По этому запросу ничего не найдено. Попробуй другое название.");
@@ -529,7 +529,10 @@ export function StreamerPanel() {
                                 setAuctionSearchQuery(game.title);
                               }}
                             >
-                              {game.title}
+                              <span className="block truncate">{game.title}</span>
+                              <span className="block text-[11px] text-[#8d7a62]">
+                                {game.mainStoryHours}ч · {game.projectedBaseScore} очков
+                              </span>
                             </button>
                           </li>
                         ))}
@@ -601,10 +604,9 @@ export function StreamerPanel() {
                       </p>
                     ) : null}
                     {auctionSearch.missingHltbCount > 0 ? (
-                      <p className="mb-3 text-xs text-[#df8b73]">
-                        Скрыто без данных по времени: {auctionSearch.missingHltbCount}. В выдачу
-                        попадают только игры, где удалось получить часы прохождения (HLTB или
-                        fallback из RAWG).
+                      <p className="mb-3 text-xs text-[#8d7a62]">
+                        Ещё {auctionSearch.missingHltbCount} результат(ов) RAWG скрыто — у них нет
+                        часов прохождения.
                       </p>
                     ) : null}
                     {selectedAuctionGame ? (

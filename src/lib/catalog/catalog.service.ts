@@ -79,7 +79,11 @@ async function resolveAvailableHltbId(
   return conflict ? null : hltbGameId;
 }
 
-export async function syncCatalogGameFromRawg(rawgId: number): Promise<CatalogGame> {
+export async function syncCatalogGameFromRawg(
+  rawgId: number,
+  options?: { fetchHltb?: boolean },
+): Promise<CatalogGame> {
+  const fetchHltb = options?.fetchHltb !== false;
   const existing = await findCatalogGameByRawgId(rawgId);
   if (existing && normalizeHours(existing.mainStoryHours)) {
     return existing;
@@ -89,10 +93,12 @@ export async function syncCatalogGameFromRawg(rawgId: number): Promise<CatalogGa
   if (!rawg) throw notFound("RAWG game");
 
   let hltb: Awaited<ReturnType<typeof searchHltb>> = null;
-  try {
-    hltb = await searchHltb(rawg.name);
-  } catch (error) {
-    console.warn("[catalog] HLTB lookup failed for", rawg.name, error);
+  if (fetchHltb) {
+    try {
+      hltb = await searchHltb(rawg.name);
+    } catch (error) {
+      console.warn("[catalog] HLTB lookup failed for", rawg.name, error);
+    }
   }
   const rawgPlaytimeFallback = normalizeRawgPlaytime(rawg.playtime);
   const existingMainHours = normalizeHours(existing?.mainStoryHours);

@@ -31,9 +31,12 @@ export async function searchRawgGames(query: string, pageSize = 10): Promise<Raw
     search: query.trim(),
     page_size: String(pageSize),
     search_precise: "true",
+    ordering: "-added",
   });
 
-  return data?.results ?? [];
+  return (data?.results ?? []).filter(
+    (game) => (game.rating ?? 0) > 0 || (game.playtime ?? 0) > 0 || (game.metacritic ?? 0) > 0,
+  );
 }
 
 export const searchRawgGamesCached = unstable_cache(

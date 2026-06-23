@@ -363,6 +363,53 @@ export type AuctionGameSearchResult = {
   metacritic: number | null;
 };
 
+type CatalogSearchRow = {
+  id: string;
+  rawgId: number;
+  title: string;
+  coverImage: string | null;
+  mainStoryHours: number | null;
+  mainExtraHours: number | null;
+  completionistHours: number | null;
+  hltbSyncedAt: Date | null;
+};
+
+type RawgSearchGame = Awaited<ReturnType<typeof searchRawgGamesCached>>[number];
+
+const AUCTION_HLTB_SEARCH_BUDGET = 3;
+
+function buildAuctionSearchResult(
+  rawgGame: RawgSearchGame,
+  catalog: CatalogSearchRow,
+  mainStoryHours: number,
+  pointsPerHour: number,
+): AuctionGameSearchResult {
+  const genres = (rawgGame.genres ?? [])
+    .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
+    .filter(Boolean);
+
+  return {
+    catalogGameId: catalog.id,
+    rawgId: rawgGame.id,
+    title: catalog.title,
+    coverImage: catalog.coverImage ?? rawgGame.background_image ?? null,
+    mainStoryHours,
+    mainExtraHours: catalog.mainExtraHours,
+    completionistHours: catalog.completionistHours,
+    projectedBaseScore: Math.round(mainStoryHours * pointsPerHour),
+    genres: [...new Set(genres)],
+    releaseDate: rawgGame.released ?? null,
+    rating: rawgGame.rating ?? null,
+    metacritic: rawgGame.metacritic ?? null,
+  };
+}
+
+async function resolveRawgPlaytime(rawgGame: RawgSearchGame) {
+  if (normalizeHltbMainHours(rawgGame.playtime)) return rawgGame.playtime ?? null;
+  const detail = await getRawgGameByIdCached(rawgGame.id).catch(() => null);
+  return detail?.playtime ?? rawgGame.playtime ?? null;
+}
+
 export async function searchAuctionGames(
   auctionId: string,
   participantId: string,
@@ -410,50 +457,56 @@ export async function searchAuctionGames(
   });
   const existingByRawgId = new Map(existingCatalog.map((game) => [game.rawgId, game]));
 
-  const withCatalog = await mapWithConcurrency(rawgTop, 2, async (rawgGame) => {
-      let catalog = existingByRawgId.get(rawgGame.id) ?? null;
-      if (!catalog || !normalizeHltbMainHours(catalog.mainStoryHours)) {
-        catalog = await syncCatalogGameFromRawg(rawgGame.id).catch(() => catalog);
+  const prepared = await mapWithConcurrency(rawgTop, 4, async (rawgGame) => {
+    let catalog: CatalogSearchRow | null = existingByRawgId.get(rawgGame.id) ?? null;
+    const rawgPlaytime = await resolveRawgPlaytime(rawgGame);
+    let mainStoryHours = catalog
+      ? resolveGameMainHours(catalog.mainStoryHours, rawgPlaytime)
+      : normalizeHltbMainHours(rawgPlaytime);
+
+    if (mainStoryHours && !catalog) {
+      catalog = await syncCatalogGameFromRawg(rawgGame.id, { fetchHltb: false }).catch(() => null);
+      if (catalog) {
+        mainStoryHours = resolveGameMainHours(catalog.mainStoryHours, rawgPlaytime);
       }
-      if (!catalog) return null;
+    } else if (
+      catalog &&
+      !normalizeHltbMainHours(catalog.mainStoryHours) &&
+      normalizeHltbMainHours(rawgPlaytime)
+    ) {
+      catalog = await syncCatalogGameFromRawg(rawgGame.id, { fetchHltb: false }).catch(() => catalog);
+      mainStoryHours = resolveGameMainHours(catalog?.mainStoryHours, rawgPlaytime);
+    }
 
-      let rawgPlaytime = rawgGame.playtime;
-      if (
-        !normalizeHltbMainHours(rawgPlaytime) &&
-        !normalizeHltbMainHours(catalog.mainStoryHours)
-      ) {
-        const detail = await getRawgGameByIdCached(rawgGame.id).catch(() => null);
-        rawgPlaytime = detail?.playtime ?? rawgPlaytime;
-      }
+    return { rawgGame, catalog, rawgPlaytime, mainStoryHours: mainStoryHours ?? null };
+  });
 
-      const mainStoryHours = resolveGameMainHours(
-        catalog.mainStoryHours,
-        rawgPlaytime,
-      );
-      if (!mainStoryHours) return null;
-      const genres = (rawgGame.genres ?? [])
-        .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
-        .filter(Boolean);
+  let hltbUsed = 0;
+  for (const item of prepared) {
+    if (item.mainStoryHours) continue;
+    if (hltbUsed >= AUCTION_HLTB_SEARCH_BUDGET) continue;
+    hltbUsed += 1;
 
-      return {
-        catalogGameId: catalog.id,
-        rawgId: rawgGame.id,
-        title: catalog.title,
-        coverImage: catalog.coverImage ?? rawgGame.background_image ?? null,
-        mainStoryHours,
-        mainExtraHours: catalog.mainExtraHours,
-        completionistHours: catalog.completionistHours,
-        projectedBaseScore: Math.round(mainStoryHours * config.pointsPerHour),
-        genres: [...new Set(genres)],
-        releaseDate: rawgGame.released ?? null,
-        rating: rawgGame.rating ?? null,
-        metacritic: rawgGame.metacritic ?? null,
-      } satisfies AuctionGameSearchResult;
-    });
+    const catalog = await syncCatalogGameFromRawg(item.rawgGame.id).catch(() => item.catalog);
+    if (!catalog) continue;
 
-  const gamesWithGenres = withCatalog
-    .filter((game): game is AuctionGameSearchResult => game !== null)
-    .sort((a, b) => {
+    item.catalog = catalog;
+    item.mainStoryHours = resolveGameMainHours(catalog.mainStoryHours, item.rawgPlaytime);
+  }
+
+  const withCatalog = prepared.flatMap((item) => {
+    if (!item.catalog || item.mainStoryHours === null) return [];
+    return [
+      buildAuctionSearchResult(
+        item.rawgGame,
+        item.catalog,
+        item.mainStoryHours,
+        config.pointsPerHour,
+      ),
+    ];
+  });
+
+  const gamesWithGenres = withCatalog.sort((a, b) => {
       const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
       if (ratingDiff !== 0) return ratingDiff;
       return a.title.localeCompare(b.title, "ru");

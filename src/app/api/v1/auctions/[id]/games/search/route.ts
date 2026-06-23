@@ -4,6 +4,8 @@ import { requireStreamer } from "@/lib/auth/guards";
 import { searchAuctionGames } from "@/lib/auction/auction.service";
 import { gameSearchQuerySchema } from "@/lib/validators/game";
 
+export const maxDuration = 60;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
