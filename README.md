@@ -1,24 +1,24 @@
 # PODNASRAL
 
-14-day streaming event platform. Streamers compete for points through game auctions, HLTB-based scoring, loot, and a world boss.
+Платформа для 14-дневного стримингового ивента. Стримеры соревнуются за очки через аукционы игр, прохождение по HLTB, лут, крафт и мирового босса.
 
-## Stack
+## Стек
 
 - Next.js 15, React 19, TypeScript, Tailwind 4
 - PostgreSQL + Prisma 6
-- NextAuth (Twitch OAuth)
+- NextAuth (вход через Twitch)
 
-## Deploy (free)
+## Деплой
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/leshapudge/podnasral)
 
-Подробно: [DEPLOY.md](./DEPLOY.md)
+Подробная инструкция: [DEPLOY.md](./DEPLOY.md)
 
-## Setup
+## Локальный запуск
 
 ```bash
 cp .env.example .env
-# Configure DATABASE_URL, AUTH_SECRET, Twitch credentials
+# Заполни DATABASE_URL, AUTH_SECRET, Twitch-ключи
 
 npm install
 npx prisma db push
@@ -26,60 +26,78 @@ npm run db:seed
 npm run dev
 ```
 
-## Key routes
+Открой http://localhost:3000
 
-- `/` — Observer dashboard (all streamers)
-- `/streamer` — Streamer panel (auction, session, craft)
-- `/admin` — Event admin
-- `/auk` — Donation-driven auction queue
-- `/api/v1/*` — REST API
-- `/api/v1/live` — SSE live updates
+## Основные страницы
 
-## API map (ported from v1 + v2 domain)
+| Путь | Назначение |
+|------|------------|
+| `/` | Дашборд для зрителей (все стримеры) |
+| `/streamer` | Панель стримера (аукцион, сессия, крафт) |
+| `/admin` | Админка ивента |
+| `/auk` | Очередь аукциона от донатов |
+| `/api/v1/*` | REST API |
+| `/api/v1/live` | SSE-обновления в реальном времени |
 
-### Infra
-| Method | Path | Auth |
-|--------|------|------|
+## API
+
+Формат ответа: `{ success: true, data, meta? }` или `{ success: false, error }`.
+
+### Инфраструктура
+
+| Метод | Путь | Авторизация |
+|-------|------|-------------|
 | GET | `/api/health` | — |
-| GET | `/api/auth/me` | session |
-| GET | `/api/v1/me` | session (streamer profile) |
+| GET | `/api/auth/me` | сессия |
+| GET | `/api/v1/me` | сессия (профиль стримера) |
 | POST | `/api/integrations/donationalerts` | `x-donationalerts-secret` |
-| POST | `/api/integrations/donationalerts/:webhookKey` | per-streamer webhook key |
+| POST | `/api/integrations/donationalerts/:webhookKey` | персональный ключ стримера |
 
-### DonationAlerts per streamer
-- Каждый стример берет персональный webhook URL в `Панель стримера`.
-- URL имеет вид `/api/integrations/donationalerts/:webhookKey` и привязан к конкретному участнику.
-- Донаты из этого webhook автоматически записываются и пытаются добавить игру в пул аукциона.
+### DonationAlerts
 
-### Public
-| GET | `/api/v1/event`, `/leaderboard`, `/boss`, `/feed`, `/live` (SSE) |
-| GET | `/api/v1/participants/:id` |
-| GET | `/api/v1/games/search?q=` |
-| GET | `/api/v1/catalog-games`, `/items`, `/craft-recipes` |
+- Каждый стример получает свой webhook URL в панели стримера.
+- URL вида `/api/integrations/donationalerts/:webhookKey` привязан к участнику.
+- Донаты автоматически записываются и могут добавить игру в пул аукциона.
 
-### Streamer flow
-`POST /auctions` → `modifiers` → `start` → `sessions/:id/roll-difficulty` → `confirm` → `pause`/`resume` → `complete`/`drop`
+### Публичные эндпоинты
 
-### Admin CRUD (from v1 crud-factory)
-| Resource | Path |
-|----------|------|
-| Users | `/api/v1/users` |
-| Events | `/api/v1/events` |
-| Participants | `/api/v1/participants` |
-| Catalog games | `/api/v1/catalog-games` |
-| Items | `/api/v1/items` |
-| Craft recipes | `/api/v1/craft-recipes` |
-| Craft ingredients | `/api/v1/craft-ingredients` |
-| Bosses | `/api/v1/bosses` |
-| Game sessions | `/api/v1/game-sessions` |
-| Activity logs | `/api/v1/activity-logs` |
-| Stats | `/api/v1/admin/stats` |
+`GET /api/v1/event`, `/leaderboard`, `/boss`, `/feed`, `/live` (SSE), `/participants/:id`, `/games/search?q=`, `/catalog-games`, `/items`, `/craft-recipes`
 
-Response format: `{ success: true, data, meta? }` or `{ success: false, error }`.
+### Флоу стримера
 
-### Typed client
+`POST /auctions` → `modifiers` → `start` → `sessions/:id/roll-difficulty` → `confirm` → `pause` / `resume` → `complete` / `drop`
+
+### Админ CRUD
+
+| Ресурс | Путь |
+|--------|------|
+| Пользователи | `/api/v1/users` |
+| Ивенты | `/api/v1/events` |
+| Участники | `/api/v1/participants` |
+| Каталог игр | `/api/v1/catalog-games` |
+| Предметы | `/api/v1/items` |
+| Рецепты крафта | `/api/v1/craft-recipes` |
+| Ингредиенты | `/api/v1/craft-ingredients` |
+| Боссы | `/api/v1/bosses` |
+| Игровые сессии | `/api/v1/game-sessions` |
+| Лог активности | `/api/v1/activity-logs` |
+| Статистика | `/api/v1/admin/stats` |
+
+### Клиент
+
 ```ts
 import { api, connectLive } from "@/lib/api/client";
+
 const event = await api.getEvent();
 connectLive((e) => console.log(e.type));
 ```
+
+## Переменные окружения
+
+См. [`.env.example`](./.env.example). Минимум для работы:
+
+- `DATABASE_URL` — PostgreSQL
+- `AUTH_SECRET` — секрет сессий
+- `AUTH_URL` / `APP_BASE_URL` — публичный URL приложения
+- `AUTH_TWITCH_ID` / `AUTH_TWITCH_SECRET` — OAuth Twitch
+- `RAWG_API_KEY` — поиск игр в аукционе

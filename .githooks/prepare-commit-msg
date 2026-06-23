@@ -1,0 +1,5 @@
+#!/bin/sh
+# Убирает автоматический Co-authored-by от Cursor, чтобы бот не попадал в Contributors на GitHub.
+sed -i.bak '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' "$1" 2>/dev/null || \
+  sed -i '' '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' "$1" 2>/dev/null || true
+rm -f "$1.bak"
