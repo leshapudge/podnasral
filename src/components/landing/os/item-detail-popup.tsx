@@ -26,6 +26,7 @@ export interface ItemDetailData {
   active?: boolean;
   appliedToRun?: boolean;
   participantStatus?: string;
+  effectLinesOverride?: string[];
 }
 
 interface ItemDetailPopupProps {
@@ -78,7 +79,7 @@ export function ItemDetailPopup({
   const [pos, setPos] = useState({ left: 12, top: 12 });
 
   const rarity = rarityConfig[item.rarity as keyof typeof rarityConfig];
-  const effectLines = describeItemEffects(item.effects);
+  const effectLines = item.effectLinesOverride ?? describeItemEffects(item.effects);
   const flavor = getItemFlavorText(item.slug, item.description);
   const texture = resolveItemIcon(item.slug, item.iconUrl);
 

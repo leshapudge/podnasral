@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Circle, Clock, Gamepad2, ListChecks, Sparkles, Star, Timer, Trophy } from "lucide-react";
 import { McAvatar } from "../mc-avatar";
 import { McItemSlot } from "../mc-item-slot";
-import { ItemDetailPopup } from "../item-detail-popup";
+import { ItemDetailPopup, type ItemDetailData } from "../item-detail-popup";
 import { TwitchStreamButton } from "../twitch-stream-button";
 import { OsEventBanner } from "../os-event-banner";
 import { OsPanelFrame } from "../os-panel-frame";
@@ -17,6 +17,7 @@ import {
   type StreamerRosterEntry,
   type ParticipantDetail,
   type ParticipantInventoryItem,
+  type SessionData,
 } from "@/lib/api/client";
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import { summarizeItemEffects } from "@/lib/inventory/item-effects";
@@ -87,6 +88,27 @@ function isGameStatus(status: string) {
   return status === "PLAYING" || status === "PAUSED" || status === "AWAITING_DIFFICULTY";
 }
 
+function runModifierToDetailItem(
+  modifier: SessionData["activeModifiers"][number],
+  inventoryModifiers: ParticipantInventoryItem[],
+): ItemDetailData {
+  const inv = inventoryModifiers.find((item) => item.slug === modifier.slug);
+  return {
+    id: inv?.id ?? `run:${modifier.slug}`,
+    slug: modifier.slug,
+    name: modifier.name,
+    rarity: inv?.rarity ?? "COMMON",
+    kind: "MODIFIER",
+    quantity: 1,
+    effects: inv?.effects ?? {},
+    description: inv?.description,
+    iconUrl: modifier.iconUrl || inv?.iconUrl,
+    active: true,
+    appliedToRun: true,
+    effectLinesOverride: inv ? undefined : modifier.effects,
+  };
+}
+
 interface StreamersHubPanelProps {
   season?: HomeSeasonData | null;
   initialStreamers?: StreamerRosterEntry[];
@@ -104,7 +126,7 @@ export function StreamersHubPanel({
   const [detail, setDetail] = useState<ParticipantDetail | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("profile");
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [popupItem, setPopupItem] = useState<ParticipantInventoryItem | null>(null);
+  const [popupItem, setPopupItem] = useState<ItemDetailData | null>(null);
   const [popupAnchor, setPopupAnchor] = useState<DOMRect | null>(null);
   const popupCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -114,7 +136,7 @@ export function StreamersHubPanel({
     popupCloseTimerRef.current = null;
   }, []);
 
-  const openItemPopup = useCallback((item: ParticipantInventoryItem, el: HTMLElement) => {
+  const openItemPopup = useCallback((item: ItemDetailData, el: HTMLElement) => {
     clearPopupCloseTimer();
     setPopupItem(item);
     setPopupAnchor(el.getBoundingClientRect());
@@ -203,6 +225,7 @@ export function StreamersHubPanel({
 
   const selectedListItem = sorted.find((s) => s.id === selectedId);
   const modifiers = detail?.inventory.filter((i) => i.kind === "MODIFIER") ?? [];
+  const runModifiers = detail?.currentSession?.activeModifiers ?? [];
   const showModifierRunDots = detail?.status !== "AUCTIONING";
   const otherItems = detail?.inventory.filter((i) => i.kind !== "MODIFIER") ?? [];
   return (
@@ -257,25 +280,9 @@ export function StreamersHubPanel({
                         {statusText}
                       </p>
                       {!eventUpcoming && isGameStatus(s.status) && s.currentGame && (
-                        <>
-                          <p className="mt-0.5 truncate text-[11px] text-[#d6c3a1]">
-                            {s.currentGame.title}
-                          </p>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-[#7a6a52]">
-                            {s.currentGame.difficulty ? (
-                              <span>{s.currentGame.difficulty}</span>
-                            ) : null}
-                            {s.currentGame.progressPct != null ? (
-                              <span>{Math.round(s.currentGame.progressPct)}%</span>
-                            ) : null}
-                            {s.currentGame.playTimeMs != null && s.currentGame.playTimeMs > 0 ? (
-                              <span>{formatDurationMs(s.currentGame.playTimeMs)}</span>
-                            ) : null}
-                            {s.currentGame.hltbHours != null ? (
-                              <span>HLTB {formatHltbHours(s.currentGame.hltbHours)}</span>
-                            ) : null}
-                          </div>
-                        </>
+                        <p className="mt-0.5 truncate text-[11px] text-[#d6c3a1]">
+                          {s.currentGame.title}
+                        </p>
                       )}
                     </div>
                     <div className="shrink-0 text-right">
@@ -635,33 +642,54 @@ export function StreamersHubPanel({
                 <OsSectionTitle className="!mt-0">
                   <span className="inline-flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-mc-diamond" />
-                    Модификаторы
+                    {runModifiers.length > 0 ? "Активные модификаторы" : "Модификаторы"}
                   </span>
                 </OsSectionTitle>
-                {detail.currentSession?.activeModifiers &&
-                detail.currentSession.activeModifiers.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {detail.currentSession.activeModifiers.map((modifier) => (
-                      <div
-                        key={modifier.slug}
-                        className="flex items-center gap-3 rounded border border-emerald-500/30 bg-emerald-500/5 p-3"
-                      >
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 ring-2 ring-[#1a1208]" />
-                        <McItemSlot
-                          slug={modifier.slug}
-                          src={modifier.iconUrl}
-                          alt={modifier.name}
-                          size="sm"
-                          active
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-emerald-200">{modifier.name}</p>
-                        </div>
-                      </div>
-                    ))}
+                {runModifiers.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {runModifiers.map((modifier) => {
+                      const item = runModifierToDetailItem(modifier, modifiers);
+                      const rarity = rarityConfig[item.rarity as keyof typeof rarityConfig];
+                      const texture = resolveItemIcon(item.slug, item.iconUrl);
+                      const summary =
+                        item.effectLinesOverride?.[0] ?? summarizeItemEffects(item.effects);
+                      return (
+                        <button
+                          key={modifier.slug}
+                          type="button"
+                          className="flex items-start gap-3 rounded border border-emerald-500/30 bg-emerald-500/5 p-3 text-left transition-colors hover:border-emerald-400/50"
+                          onMouseEnter={(e) => openItemPopup(item, e.currentTarget)}
+                          onMouseLeave={() => schedulePopupClose()}
+                          onClick={(e) => openItemPopup(item, e.currentTarget)}
+                        >
+                          <div className="relative shrink-0">
+                            <span className="absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#1a1208]" />
+                            <McItemSlot
+                              slug={item.slug}
+                              src={texture}
+                              alt={item.name}
+                              size="md"
+                              active
+                              enchanted={
+                                item.rarity === "EPIC" ||
+                                item.rarity === "LEGENDARY" ||
+                                item.rarity === "RARE"
+                              }
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-sm font-bold leading-tight", rarity?.text)}>
+                              {item.name}
+                            </p>
+                            {summary ? (
+                              <p className="mt-1 text-xs leading-snug text-primary">{summary}</p>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                ) : null}
-                {modifiers.length === 0 ? (
+                ) : modifiers.length === 0 ? (
                   <p className="mt-2 text-sm text-[#7a6a52]">Нет модификаторов в инвентаре</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
