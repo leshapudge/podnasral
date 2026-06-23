@@ -148,9 +148,12 @@ export function ItemDetailPopup({
                   <span
                     className={cn(
                       "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
-                      item.kind === "MODIFIER" && item.appliedToRun
+                      item.kind === "MODIFIER" &&
+                        item.participantStatus !== "AUCTIONING" &&
+                        item.appliedToRun
                         ? "bg-emerald-400"
-                        : item.kind === "MODIFIER"
+                        : item.kind === "MODIFIER" &&
+                            item.participantStatus !== "AUCTIONING"
                           ? "bg-red-500"
                           : "bg-primary",
                     )}

@@ -203,6 +203,7 @@ export function StreamersHubPanel({
 
   const selectedListItem = sorted.find((s) => s.id === selectedId);
   const modifiers = detail?.inventory.filter((i) => i.kind === "MODIFIER") ?? [];
+  const showModifierRunDots = detail?.status !== "AUCTIONING";
   const otherItems = detail?.inventory.filter((i) => i.kind !== "MODIFIER") ?? [];
   return (
     <OsPanelFrame className="!overflow-hidden !p-0">
@@ -683,16 +684,18 @@ export function StreamersHubPanel({
                           onClick={(e) => openItemPopup(item, e.currentTarget)}
                         >
                           <div className="relative shrink-0">
-                            <span
-                              className={cn(
-                                "absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-[#1a1208]",
-                                item.appliedToRun
-                                  ? "bg-emerald-400"
-                                  : item.active
-                                    ? "bg-red-500"
-                                    : "bg-[#5c4f3f]",
-                              )}
-                            />
+                            {showModifierRunDots ? (
+                              <span
+                                className={cn(
+                                  "absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-[#1a1208]",
+                                  item.appliedToRun
+                                    ? "bg-emerald-400"
+                                    : item.active
+                                      ? "bg-red-500"
+                                      : "bg-[#5c4f3f]",
+                                )}
+                              />
+                            ) : null}
                             <McItemSlot
                               slug={item.slug}
                               src={texture}
