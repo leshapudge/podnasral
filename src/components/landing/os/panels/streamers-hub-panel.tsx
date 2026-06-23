@@ -623,7 +623,7 @@ export function StreamersHubPanel({
                     </div>
                   </div>
                 ) : detail.status === "AUCTIONING" ? (
-                  <p className="mt-2 text-sm text-hypixel-gold">На аукционе — выбирает игру и модификаторы</p>
+                  <p className="mt-2 text-sm text-[#7a6a52]">—</p>
                 ) : (
                   <p className="mt-2 text-sm text-[#7a6a52]">Сейчас не в игре</p>
                 )}
@@ -634,14 +634,9 @@ export function StreamersHubPanel({
                 <OsSectionTitle className="!mt-0">
                   <span className="inline-flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-mc-diamond" />
-                    {detail.status === "AUCTIONING" ? "Модификаторы аукциона" : "Модификаторы"}
+                    Модификаторы
                   </span>
                 </OsSectionTitle>
-                {detail.status === "AUCTIONING" && modifiers.length > 0 ? (
-                  <p className="mt-1 text-[10px] text-[#7a6a52]">
-                    Зелёная точка — на аукционе, красная — пока не выбран
-                  </p>
-                ) : null}
                 {detail.currentSession?.activeModifiers &&
                 detail.currentSession.activeModifiers.length > 0 ? (
                   <div className="mt-3 space-y-2">
@@ -660,7 +655,6 @@ export function StreamersHubPanel({
                         />
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-emerald-200">{modifier.name}</p>
-                          <p className="text-xs text-[#7a6a52]">Активен в этом забеге</p>
                         </div>
                       </div>
                     ))}
@@ -723,13 +717,6 @@ export function StreamersHubPanel({
                               {item.name}
                             </p>
                             <p className="mt-1 text-xs leading-snug text-primary">{summary}</p>
-                            <p className="mt-1 text-[10px] text-[#7a6a52]">
-                              {item.appliedToRun
-                                ? "На аукционе"
-                                : item.active
-                                  ? "Можно выбрать"
-                                  : "Не в этом забеге"}
-                            </p>
                           </div>
                         </button>
                       );

@@ -137,31 +137,6 @@ export function ItemDetailPopup({
           </p>
         </div>
 
-        {item.kind === "MODIFIER" && (
-          <p
-            className={cn(
-              "mt-3 w-full rounded border px-2 py-1.5 text-center text-[10px] leading-snug uppercase tracking-wide",
-              item.appliedToRun
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                : item.active
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-[#373737] bg-[#1a1208] text-[#7a6a52]",
-            )}
-          >
-            {item.appliedToRun
-              ? "✓ Используется в этом забеге"
-              : item.active
-                ? "Можно применить на аукционе"
-                : item.participantStatus === "AUCTIONING"
-                  ? "Не выбран для аукциона"
-                  : item.participantStatus === "PLAYING" ||
-                      item.participantStatus === "PAUSED" ||
-                      item.participantStatus === "AWAITING_DIFFICULTY"
-                    ? "Не используется в этом забеге"
-                    : "Между забегами"}
-          </p>
-        )}
-
         {effectLines.length > 0 && (
           <div className="mt-3 w-full border-t border-dashed border-[#373737] pt-3 text-left">
             <p className="text-center text-[10px] font-semibold uppercase tracking-widest text-[#a89070]">
