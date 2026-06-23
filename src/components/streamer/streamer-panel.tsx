@@ -629,26 +629,9 @@ export function StreamerPanel() {
                               {selectedAuctionGame.title}
                             </p>
                             <p className="text-xs text-[#a89070]">
-                              HLTB Main Story: {selectedAuctionGame.mainStoryHours}ч · База:{" "}
+                              Main Story {selectedAuctionGame.mainStoryHours}ч · ~
                               {selectedAuctionGame.projectedBaseScore} очков
                             </p>
-                            <p className="mt-1 text-[11px] text-[#8d7a62]">
-                              Формула базы: Main Story {selectedAuctionGame.mainStoryHours}ч
-                              (мягкий потолок после {auctionSearch.softCapHours}ч)
-                            </p>
-                            <p className="mt-1 text-[11px] text-[#8d7a62]">
-                              Main+Extra: {selectedAuctionGame.mainExtraHours ?? "—"}ч · 100%:{" "}
-                              {selectedAuctionGame.completionistHours ?? "—"}ч
-                              {selectedAuctionGame.metacritic != null
-                                ? ` · MC ${Math.round(selectedAuctionGame.metacritic)}`
-                                : ""}
-                            </p>
-                            {selectedAuctionGame.genres.length > 0 ? (
-                              <p className="mt-1 text-[11px] text-[#8d7a62]">
-                                Жанры:{" "}
-                                {selectedAuctionGame.genres.map(formatGenreLabel).join(", ")}
-                              </p>
-                            ) : null}
                           </div>
                         </div>
                         <button

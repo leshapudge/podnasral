@@ -9,6 +9,8 @@ import { formatSessionPublic, getSession } from "@/lib/sessions/session.service"
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import { getElapsedMs, getProgressPct } from "@/lib/sessions/timer";
 import { getCatalogHltbMainStoryHours } from "@/lib/catalog/hltb-hours";
+import { getActiveModifiers } from "@/lib/casino/modifiers";
+import { parsePendingModifierIds } from "@/lib/modifiers/pending-modifiers";
 import {
   calculateScore,
   type ModifierEffects,
@@ -261,7 +263,25 @@ export async function getParticipantPublicDetail(participantId: string) {
     progressPct = getProgressPct(elapsed, session.hltbMainHours);
   }
 
-  const modifiersAvailable = participant.status === "IDLE";
+  const modifiersAvailable =
+    participant.status === "IDLE" || participant.status === "AUCTIONING";
+
+  const activeAuction = await prisma.auctionRun.findFirst({
+    where: {
+      participantId,
+      status: { in: ["PREPARING", "RUNNING"] },
+    },
+    select: {
+      modifierUses: { select: { inventoryItemId: true } },
+    },
+  });
+  const appliedInventoryIds = new Set([
+    ...parsePendingModifierIds(participant.pendingModifierItemIds),
+    ...(activeAuction?.modifierUses.map((use) => use.inventoryItemId) ?? []),
+  ]);
+  const sessionModifierSlugs = new Set(
+    session ? getActiveModifiers(session).map((modifier) => modifier.slug) : [],
+  );
 
   let currentGameStats: {
     hltbHours: number | null;
@@ -333,21 +353,29 @@ export async function getParticipantPublicDetail(participantId: string) {
     currentSession: session
       ? await formatSessionPublic(await getSession(session.id))
       : null,
-    inventory: inventory.map((i) => ({
-      id: i.id,
-      slug: i.itemDefinition.slug,
-      name: i.itemDefinition.name,
-      description: i.itemDefinition.description,
-      rarity: i.itemDefinition.rarity,
-      kind: i.itemDefinition.kind,
-      quantity: i.quantity,
-      effects: i.itemDefinition.effectsJson as Record<
-        string,
-        number | boolean | string | string[]
-      >,
-      iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
-      active: i.itemDefinition.kind === "MODIFIER" && modifiersAvailable && i.quantity > 0,
-    })),
+    inventory: inventory.map((i) => {
+      const isModifier = i.itemDefinition.kind === "MODIFIER";
+      const appliedToRun =
+        isModifier &&
+        (appliedInventoryIds.has(i.id) || sessionModifierSlugs.has(i.itemDefinition.slug));
+
+      return {
+        id: i.id,
+        slug: i.itemDefinition.slug,
+        name: i.itemDefinition.name,
+        description: i.itemDefinition.description,
+        rarity: i.itemDefinition.rarity,
+        kind: i.itemDefinition.kind,
+        quantity: i.quantity,
+        effects: i.itemDefinition.effectsJson as Record<
+          string,
+          number | boolean | string | string[]
+        >,
+        iconUrl: resolveItemIcon(i.itemDefinition.slug, i.itemDefinition.iconUrl),
+        active: isModifier ? modifiersAvailable && i.quantity > 0 : true,
+        appliedToRun: isModifier ? appliedToRun : false,
+      };
+    }),
     history: participant.gameSessions.map((s) => ({
       id: s.id,
       game: s.catalogGame.title,

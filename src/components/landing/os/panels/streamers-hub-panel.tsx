@@ -622,6 +622,8 @@ export function StreamersHubPanel({
                       )}
                     </div>
                   </div>
+                ) : detail.status === "AUCTIONING" ? (
+                  <p className="mt-2 text-sm text-hypixel-gold">На аукционе — выбирает игру и модификаторы</p>
                 ) : (
                   <p className="mt-2 text-sm text-[#7a6a52]">Сейчас не в игре</p>
                 )}
@@ -632,9 +634,38 @@ export function StreamersHubPanel({
                 <OsSectionTitle className="!mt-0">
                   <span className="inline-flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-mc-diamond" />
-                    Активные модификаторы
+                    {detail.status === "AUCTIONING" ? "Модификаторы аукциона" : "Модификаторы"}
                   </span>
                 </OsSectionTitle>
+                {detail.status === "AUCTIONING" && modifiers.length > 0 ? (
+                  <p className="mt-1 text-[10px] text-[#7a6a52]">
+                    Зелёная точка — на аукционе, красная — пока не выбран
+                  </p>
+                ) : null}
+                {detail.currentSession?.activeModifiers &&
+                detail.currentSession.activeModifiers.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {detail.currentSession.activeModifiers.map((modifier) => (
+                      <div
+                        key={modifier.slug}
+                        className="flex items-center gap-3 rounded border border-emerald-500/30 bg-emerald-500/5 p-3"
+                      >
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 ring-2 ring-[#1a1208]" />
+                        <McItemSlot
+                          slug={modifier.slug}
+                          src={modifier.iconUrl}
+                          alt={modifier.name}
+                          size="sm"
+                          active
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-emerald-200">{modifier.name}</p>
+                          <p className="text-xs text-[#7a6a52]">Активен в этом забеге</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {modifiers.length === 0 ? (
                   <p className="mt-2 text-sm text-[#7a6a52]">Нет модификаторов в инвентаре</p>
                 ) : (
@@ -658,6 +689,16 @@ export function StreamersHubPanel({
                           onClick={(e) => openItemPopup(item, e.currentTarget)}
                         >
                           <div className="relative shrink-0">
+                            <span
+                              className={cn(
+                                "absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-[#1a1208]",
+                                item.appliedToRun
+                                  ? "bg-emerald-400"
+                                  : item.active
+                                    ? "bg-red-500"
+                                    : "bg-[#5c4f3f]",
+                              )}
+                            />
                             <McItemSlot
                               slug={item.slug}
                               src={texture}
@@ -683,7 +724,11 @@ export function StreamersHubPanel({
                             </p>
                             <p className="mt-1 text-xs leading-snug text-primary">{summary}</p>
                             <p className="mt-1 text-[10px] text-[#7a6a52]">
-                              {item.active ? "Нажми для подробностей" : "Сейчас недоступен"}
+                              {item.appliedToRun
+                                ? "На аукционе"
+                                : item.active
+                                  ? "Можно выбрать"
+                                  : "Не в этом забеге"}
                             </p>
                           </div>
                         </button>
@@ -766,7 +811,7 @@ export function StreamersHubPanel({
 
       {popupItem && (
         <ItemDetailPopup
-          item={popupItem}
+          item={{ ...popupItem, participantStatus: detail?.status }}
           anchorRect={popupAnchor}
           visible
           onClose={closeItemPopup}

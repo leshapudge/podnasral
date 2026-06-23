@@ -122,6 +122,7 @@ export interface ParticipantInventoryItem {
   effects: Record<string, number | boolean | string | string[]>;
   iconUrl?: string | null;
   active: boolean;
+  appliedToRun?: boolean;
 }
 
 export interface ParticipantDetail {
