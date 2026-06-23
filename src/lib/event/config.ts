@@ -12,8 +12,18 @@ export const difficultyWeightsSchema = z.object({
 
 export const eventConfigSchema = z.object({
   /** Версия пресета баланса, чтобы можно было безболезненно обновлять старые ивенты. */
-  balanceVersion: z.number().default(2),
-  pointsPerHour: z.number().default(10),
+  balanceVersion: z.number().default(3),
+  pointsPerHour: z.number().default(8),
+  /** Очки считаются только по HLTB Main Story. */
+  hltbScoring: z
+    .object({
+      minHours: z.number().default(3),
+      maxHours: z.number().default(70),
+      /** До этого порога — полная ставка за час, дальше мягкое затухание. */
+      softCapHours: z.number().default(28),
+      overSoftCapRate: z.number().default(0.82),
+    })
+    .default({}),
   dropPenaltyRatio: z.number().default(0.18),
   bossDamageRatio: z.number().default(0.45),
   auctionCandidateCount: z.number().default(8),
@@ -38,12 +48,12 @@ export const eventConfigSchema = z.object({
       }),
     )
     .default([
-      { maxRatio: 0.5, multiplier: 1.15 },
-      { maxRatio: 0.75, multiplier: 1.08 },
+      { maxRatio: 0.55, multiplier: 1.12 },
+      { maxRatio: 0.8, multiplier: 1.05 },
       { maxRatio: 1.0, multiplier: 1.0 },
-      { maxRatio: 1.35, multiplier: 0.95 },
-      { maxRatio: 1.75, multiplier: 0.9 },
-      { maxRatio: TIME_MULTIPLIER_FALLBACK_MAX_RATIO, multiplier: 0.84 },
+      { maxRatio: 1.3, multiplier: 0.94 },
+      { maxRatio: 1.6, multiplier: 0.88 },
+      { maxRatio: TIME_MULTIPLIER_FALLBACK_MAX_RATIO, multiplier: 0.82 },
     ]),
   lootWeights: z
     .record(z.string(), z.record(z.string(), z.number()))
@@ -93,7 +103,7 @@ function sanitizeEventConfigRaw(raw: unknown): unknown {
   const o = { ...(raw as Record<string, unknown>) };
   const balanceVersion = typeof o.balanceVersion === "number" ? o.balanceVersion : 1;
 
-  // Legacy configs (до ручного аука и catch-up v2) автоматически переходят на новый баланс.
+  // Legacy configs автоматически переходят на актуальный баланс.
   if (balanceVersion < 2) {
     delete o.dropPenaltyRatio;
     delete o.difficultyMultipliers;
@@ -101,6 +111,13 @@ function sanitizeEventConfigRaw(raw: unknown): unknown {
     delete o.catchUp;
     delete o.leaderSoftCap;
     o.balanceVersion = 2;
+  }
+
+  if (balanceVersion < 3) {
+    delete o.pointsPerHour;
+    delete o.hltbScoring;
+    delete o.timeMultipliers;
+    o.balanceVersion = 3;
   }
 
   if (Array.isArray(o.timeMultipliers)) {

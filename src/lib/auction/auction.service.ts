@@ -9,7 +9,14 @@ import {
   searchRawgGamesCached,
 } from "@/lib/catalog/rawg.service";
 import { syncCatalogGameFromRawg } from "@/lib/catalog/catalog.service";
-import type { ModifierEffects } from "@/lib/scoring/score-calculator";
+import {
+  getCatalogHltbMainStoryHours,
+} from "@/lib/catalog/hltb-hours";
+import type { EventConfig } from "@/lib/event/config";
+import {
+  calculateHltbBaseScore,
+  type ModifierEffects,
+} from "@/lib/scoring/score-calculator";
 import { toJson } from "@/lib/utils/json";
 import { buildModifiersSnapshot } from "@/lib/casino/modifiers";
 import {
@@ -97,18 +104,6 @@ function parseEffects(json: unknown): ModifierEffects {
 
 function normalizeGenreSlug(value: string) {
   return value.trim().toLowerCase();
-}
-
-function normalizeHltbMainHours(hours: number | null | undefined) {
-  if (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0) return null;
-  return hours;
-}
-
-function resolveGameMainHours(
-  catalogHours: number | null | undefined,
-  rawgPlaytime: number | null | undefined,
-) {
-  return normalizeHltbMainHours(catalogHours) ?? normalizeHltbMainHours(rawgPlaytime);
 }
 
 async function mapWithConcurrency<T, R>(
@@ -376,13 +371,13 @@ type CatalogSearchRow = {
 
 type RawgSearchGame = Awaited<ReturnType<typeof searchRawgGamesCached>>[number];
 
-const AUCTION_HLTB_SEARCH_BUDGET = 3;
+const AUCTION_SEARCH_CONCURRENCY = 2;
 
 function buildAuctionSearchResult(
   rawgGame: RawgSearchGame,
   catalog: CatalogSearchRow,
   mainStoryHours: number,
-  pointsPerHour: number,
+  config: EventConfig,
 ): AuctionGameSearchResult {
   const genres = (rawgGame.genres ?? [])
     .map((genre) => normalizeGenreSlug(genre.slug || genre.name || ""))
@@ -396,18 +391,12 @@ function buildAuctionSearchResult(
     mainStoryHours,
     mainExtraHours: catalog.mainExtraHours,
     completionistHours: catalog.completionistHours,
-    projectedBaseScore: Math.round(mainStoryHours * pointsPerHour),
+    projectedBaseScore: calculateHltbBaseScore(mainStoryHours, config),
     genres: [...new Set(genres)],
     releaseDate: rawgGame.released ?? null,
     rating: rawgGame.rating ?? null,
     metacritic: rawgGame.metacritic ?? null,
   };
-}
-
-async function resolveRawgPlaytime(rawgGame: RawgSearchGame) {
-  if (normalizeHltbMainHours(rawgGame.playtime)) return rawgGame.playtime ?? null;
-  const detail = await getRawgGameByIdCached(rawgGame.id).catch(() => null);
-  return detail?.playtime ?? rawgGame.playtime ?? null;
 }
 
 export async function searchAuctionGames(
@@ -457,52 +446,19 @@ export async function searchAuctionGames(
   });
   const existingByRawgId = new Map(existingCatalog.map((game) => [game.rawgId, game]));
 
-  const prepared = await mapWithConcurrency(rawgTop, 4, async (rawgGame) => {
+  const prepared = await mapWithConcurrency(rawgTop, AUCTION_SEARCH_CONCURRENCY, async (rawgGame) => {
     let catalog: CatalogSearchRow | null = existingByRawgId.get(rawgGame.id) ?? null;
-    const rawgPlaytime = await resolveRawgPlaytime(rawgGame);
-    let mainStoryHours = catalog
-      ? resolveGameMainHours(catalog.mainStoryHours, rawgPlaytime)
-      : normalizeHltbMainHours(rawgPlaytime);
-
-    if (mainStoryHours && !catalog) {
-      catalog = await syncCatalogGameFromRawg(rawgGame.id, { fetchHltb: false }).catch(() => null);
-      if (catalog) {
-        mainStoryHours = resolveGameMainHours(catalog.mainStoryHours, rawgPlaytime);
-      }
-    } else if (
-      catalog &&
-      !normalizeHltbMainHours(catalog.mainStoryHours) &&
-      normalizeHltbMainHours(rawgPlaytime)
-    ) {
-      catalog = await syncCatalogGameFromRawg(rawgGame.id, { fetchHltb: false }).catch(() => catalog);
-      mainStoryHours = resolveGameMainHours(catalog?.mainStoryHours, rawgPlaytime);
+    if (!getCatalogHltbMainStoryHours(catalog)) {
+      catalog = await syncCatalogGameFromRawg(rawgGame.id).catch(() => catalog);
     }
-
-    return { rawgGame, catalog, rawgPlaytime, mainStoryHours: mainStoryHours ?? null };
+    const mainStoryHours = getCatalogHltbMainStoryHours(catalog);
+    return { rawgGame, catalog, mainStoryHours };
   });
-
-  let hltbUsed = 0;
-  for (const item of prepared) {
-    if (item.mainStoryHours) continue;
-    if (hltbUsed >= AUCTION_HLTB_SEARCH_BUDGET) continue;
-    hltbUsed += 1;
-
-    const catalog = await syncCatalogGameFromRawg(item.rawgGame.id).catch(() => item.catalog);
-    if (!catalog) continue;
-
-    item.catalog = catalog;
-    item.mainStoryHours = resolveGameMainHours(catalog.mainStoryHours, item.rawgPlaytime);
-  }
 
   const withCatalog = prepared.flatMap((item) => {
     if (!item.catalog || item.mainStoryHours === null) return [];
     return [
-      buildAuctionSearchResult(
-        item.rawgGame,
-        item.catalog,
-        item.mainStoryHours,
-        config.pointsPerHour,
-      ),
+      buildAuctionSearchResult(item.rawgGame, item.catalog, item.mainStoryHours, config),
     ];
   });
 
@@ -536,6 +492,7 @@ export async function searchAuctionGames(
     auctionId: auction.id,
     status: auction.status,
     pointsPerHour: config.pointsPerHour,
+    softCapHours: config.hltbScoring.softCapHours,
     missingHltbCount,
     canSelectGenre: genreRules.canSelectGenre,
     forcedGenres: genreRules.forcedGenres,
@@ -571,7 +528,7 @@ export async function getAuctionSelectionOptions(auctionId: string, participantI
 
   const gamesWithGenres = await Promise.all(
     pool.map(async (entry) => {
-      const mainStoryHours = normalizeHltbMainHours(entry.catalogGame.mainStoryHours);
+      const mainStoryHours = getCatalogHltbMainStoryHours(entry.catalogGame);
       if (!mainStoryHours) return null;
 
       let genres: string[] = [];
@@ -587,7 +544,7 @@ export async function getAuctionSelectionOptions(auctionId: string, participantI
         title: entry.catalogGame.title,
         coverImage: entry.catalogGame.coverImage ?? null,
         mainStoryHours,
-        projectedBaseScore: Math.round(mainStoryHours * config.pointsPerHour),
+        projectedBaseScore: calculateHltbBaseScore(mainStoryHours, config),
         genres: [...new Set(genres)],
       } satisfies AuctionSelectionOption;
     }),
@@ -694,12 +651,12 @@ export async function startAuction(auctionId: string, participantId: string) {
 
   const winner = await prisma.catalogGame.findUnique({
     where: { id: auction.resolvedGameId },
-    select: { id: true, title: true, mainStoryHours: true },
+    select: { id: true, title: true, mainStoryHours: true, hltbSyncedAt: true },
   });
   if (!winner) throw badRequest("Selected game not found");
-  const winnerMainStoryHours = normalizeHltbMainHours(winner.mainStoryHours);
+  const winnerMainStoryHours = getCatalogHltbMainStoryHours(winner);
   if (!winnerMainStoryHours) {
-    throw badRequest("У выбранной игры нет данных по времени прохождения. Выберите другую игру.");
+    throw badRequest("У выбранной игры нет HLTB Main Story. Выберите другую игру.");
   }
 
   const event = await getActiveEvent();
@@ -841,26 +798,22 @@ export async function resolveAuctionFromDonations(
       mainStoryHours: true,
       mainExtraHours: true,
       completionistHours: true,
+      hltbSyncedAt: true,
     },
   });
   if (!selected) throw badRequest("Selected game not found");
-  let selectedMainStoryHours = selected.mainStoryHours;
-  let selectedMainExtraHours = selected.mainExtraHours;
-  let selectedCompletionistHours = selected.completionistHours;
 
-  if (!normalizeHltbMainHours(selectedMainStoryHours) && selected.rawgId) {
-    const synced = await syncCatalogGameFromRawg(selected.rawgId).catch(() => null);
-    if (synced) {
-      selectedMainStoryHours = synced.mainStoryHours;
-      selectedMainExtraHours = synced.mainExtraHours;
-      selectedCompletionistHours = synced.completionistHours;
-    }
+  let synced = selected;
+  if (!getCatalogHltbMainStoryHours(selected) && selected.rawgId) {
+    synced = await syncCatalogGameFromRawg(selected.rawgId, { forceHltb: true }).catch(() => selected);
   }
 
-  const mainStoryHours = normalizeHltbMainHours(selectedMainStoryHours);
+  const mainStoryHours = getCatalogHltbMainStoryHours(synced);
   if (!mainStoryHours) {
-    throw badRequest("Для этой игры нет данных по времени прохождения. Выберите другую игру.");
+    throw badRequest("Для этой игры нет HLTB Main Story. Выберите другую игру.");
   }
+  const selectedMainExtraHours = synced.mainExtraHours;
+  const selectedCompletionistHours = synced.completionistHours;
 
   const modifiers = (auction.modifiersJson as ModifierEffects[]) ?? [];
   const genreRules = getAuctionGenreRules(modifiers);

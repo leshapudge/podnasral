@@ -111,6 +111,26 @@ function clampModifierScoreMult(mult: number, config: EventConfig): number {
   );
 }
 
+/** Базовые очки только за HLTB Main Story с мягким потолком на очень длинных играх. */
+export function calculateHltbBaseScore(hltbMainHours: number, config: EventConfig): number {
+  const scoring = config.hltbScoring;
+  const minHours = scoring.minHours;
+  const maxHours = scoring.maxHours;
+  const softCapHours = scoring.softCapHours;
+  const overSoftCapRate = scoring.overSoftCapRate;
+
+  const hours = Math.min(maxHours, Math.max(minHours, hltbMainHours));
+  const knee = Math.min(softCapHours, maxHours);
+
+  if (hours <= knee) {
+    return Math.round(hours * config.pointsPerHour);
+  }
+
+  const baseAtKnee = knee * config.pointsPerHour;
+  const overflow = (hours - knee) * config.pointsPerHour * overSoftCapRate;
+  return Math.round(baseAtKnee + overflow);
+}
+
 export function calculateScore(params: {
   hltbMainHours: number;
   elapsedMs: number;
@@ -154,7 +174,7 @@ export function calculateScore(params: {
   const shortFlat =
     shortMax > 0 && hltbMainHours <= shortMax ? (combined.shortGameFlatBonus ?? 0) : 0;
 
-  const baseScore = Math.round(hltbMainHours * config.pointsPerHour);
+  const baseScore = calculateHltbBaseScore(hltbMainHours, config);
   let finalScore = Math.round(
     baseScore *
       timeMultiplier *
@@ -206,7 +226,7 @@ export function calculatePotentialMax(params: {
   const catchUp = params.competition
     ? catchUpScoreMultiplier(params.competition, params.config)
     : 1;
-  const baseScore = Math.round(params.hltbMainHours * params.config.pointsPerHour);
+  const baseScore = calculateHltbBaseScore(params.hltbMainHours, params.config);
   return Math.round(baseScore * bestTimeMult * difficultyMultiplier * modifierMultiplier * catchUp);
 }
 

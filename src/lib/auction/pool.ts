@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { getCatalogHltbMainStoryHours } from "@/lib/catalog/hltb-hours";
 import type { ModifierEffects } from "@/lib/scoring/score-calculator";
 
 const SHORT_GAME_HOURS = 15;
@@ -43,7 +44,9 @@ export async function getEligiblePoolGames(eventId: string, participantId: strin
     ...activeGameIds.map((g) => g.catalogGameId),
   ]);
 
-  return pool.filter((p) => !exclude.has(p.catalogGameId) && p.catalogGame.mainStoryHours);
+  return pool.filter(
+    (p) => !exclude.has(p.catalogGameId) && getCatalogHltbMainStoryHours(p.catalogGame),
+  );
 }
 
 export function weightedPick<T extends { weight: number }>(

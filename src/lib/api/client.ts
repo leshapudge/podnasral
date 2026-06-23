@@ -338,6 +338,7 @@ export interface AuctionGameSearchData {
   auctionId: string;
   status: "PREPARING" | "RUNNING";
   pointsPerHour: number;
+  softCapHours: number;
   missingHltbCount: number;
   canSelectGenre: boolean;
   forcedGenres: string[];

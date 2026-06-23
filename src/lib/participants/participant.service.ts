@@ -8,6 +8,7 @@ import { parseEventConfig, type EventConfig } from "@/lib/event/config";
 import { formatSessionPublic, getSession } from "@/lib/sessions/session.service";
 import { resolveGameCover } from "@/lib/landing/game-covers";
 import { getElapsedMs, getProgressPct } from "@/lib/sessions/timer";
+import { getCatalogHltbMainStoryHours } from "@/lib/catalog/hltb-hours";
 import {
   calculateScore,
   type ModifierEffects,
@@ -280,9 +281,9 @@ export async function getParticipantPublicDetail(participantId: string) {
   } else if (gamesEnabled && participant.currentGameTitle) {
     const catalogGame = await prisma.catalogGame.findFirst({
       where: { title: participant.currentGameTitle },
-      select: { mainStoryHours: true },
+      select: { mainStoryHours: true, hltbSyncedAt: true },
     });
-    const hltb = catalogGame?.mainStoryHours ?? null;
+    const hltb = getCatalogHltbMainStoryHours(catalogGame);
     if (hltb && progressPct > 0) {
       elapsedMs = Math.round((progressPct / 100) * hltb * 3_600_000);
     }

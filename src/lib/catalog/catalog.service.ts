@@ -2,17 +2,13 @@ import type { CatalogGame } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { notFound } from "@/lib/api/errors";
 import { searchHltb } from "./hltb.service";
+import { getCatalogHltbMainStoryHours, normalizeHltbMainHours } from "./hltb-hours";
 import { getRawgGameById } from "./rawg.service";
 import type { RawgGameDetail } from "./types";
 
 function normalizeHours(hours: number | null | undefined) {
   if (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0) return null;
   return hours;
-}
-
-function normalizeRawgPlaytime(playtime: number | null | undefined) {
-  if (typeof playtime !== "number" || !Number.isFinite(playtime) || playtime <= 0) return null;
-  return playtime;
 }
 
 function slugify(text: string) {
@@ -79,13 +75,19 @@ async function resolveAvailableHltbId(
   return conflict ? null : hltbGameId;
 }
 
+function parseReleaseYear(released?: string | null) {
+  if (!released) return undefined;
+  const year = Number.parseInt(released.slice(0, 4), 10);
+  return Number.isFinite(year) ? year : undefined;
+}
+
 export async function syncCatalogGameFromRawg(
   rawgId: number,
-  options?: { fetchHltb?: boolean },
+  options?: { fetchHltb?: boolean; forceHltb?: boolean },
 ): Promise<CatalogGame> {
   const fetchHltb = options?.fetchHltb !== false;
   const existing = await findCatalogGameByRawgId(rawgId);
-  if (existing && normalizeHours(existing.mainStoryHours)) {
+  if (existing && getCatalogHltbMainStoryHours(existing) && !options?.forceHltb) {
     return existing;
   }
 
@@ -95,13 +97,14 @@ export async function syncCatalogGameFromRawg(
   let hltb: Awaited<ReturnType<typeof searchHltb>> = null;
   if (fetchHltb) {
     try {
-      hltb = await searchHltb(rawg.name);
+      hltb = await searchHltb(rawg.name, {
+        preferId: existing?.hltbId ?? undefined,
+        releaseYear: parseReleaseYear(rawg.released),
+      });
     } catch (error) {
       console.warn("[catalog] HLTB lookup failed for", rawg.name, error);
     }
   }
-  const rawgPlaytimeFallback = normalizeRawgPlaytime(rawg.playtime);
-  const existingMainHours = normalizeHours(existing?.mainStoryHours);
   const existingMainExtra = normalizeHours(existing?.mainExtraHours);
   const existingCompletionist = normalizeHours(existing?.completionistHours);
   const hltbMain = normalizeHours(hltb?.gameplayMain);
@@ -113,6 +116,7 @@ export async function syncCatalogGameFromRawg(
     rawgId,
     existing?.id ?? legacy?.id,
   );
+  const verifiedExisting = getCatalogHltbMainStoryHours(existing);
 
   const data = {
     rawgId,
@@ -120,10 +124,10 @@ export async function syncCatalogGameFromRawg(
     title: rawg.name,
     slug: buildCatalogSlug(rawg, rawgId),
     coverImage: rawg.background_image ?? null,
-    mainStoryHours: hltbMain ?? existingMainHours ?? rawgPlaytimeFallback ?? null,
+    mainStoryHours: hltbMain ?? (verifiedExisting ? existing?.mainStoryHours ?? null : null),
     mainExtraHours: hltbMainExtra ?? existingMainExtra ?? null,
     completionistHours: hltbCompletionist ?? existingCompletionist ?? null,
-    hltbSyncedAt: hltb ? new Date() : existing?.hltbSyncedAt ?? null,
+    hltbSyncedAt: hltbMain ? new Date() : verifiedExisting ? existing?.hltbSyncedAt ?? null : null,
   };
 
   if (existing) {
@@ -153,7 +157,9 @@ export async function syncGameHltb(catalogGameId: string) {
   const game = await prisma.catalogGame.findUnique({ where: { id: catalogGameId } });
   if (!game) throw notFound("Game");
 
-  const hltb = await searchHltb(game.title, game.hltbId ? { preferId: game.hltbId } : undefined);
+  const hltb = await searchHltb(game.title, {
+    preferId: game.hltbId ?? undefined,
+  });
   if (!hltb) return game;
 
   const hltbId = await resolveAvailableHltbId(hltb.gameId, game.rawgId, game.id);
@@ -190,7 +196,7 @@ export async function syncAllPoolHltb(eventId: string) {
 
   const results = [];
   for (const entry of pool) {
-    if (!entry.catalogGame.mainStoryHours) {
+    if (!getCatalogHltbMainStoryHours(entry.catalogGame)) {
       results.push(await syncGameHltb(entry.catalogGameId));
     }
   }

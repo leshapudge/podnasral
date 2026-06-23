@@ -10,8 +10,8 @@ export async function GET() {
     return Response.json({
       rules: {
         scoring: {
-          base: `${config.pointsPerHour} очков за каждый час HLTB игры`,
-          time: "Быстрее HLTB — бонус до +20%; сильный перерасход времени — штраф до −20%",
+          base: `База только за HLTB Main Story: ${config.pointsPerHour} очков/ч до ${config.hltbScoring.softCapHours}ч, дальше ×${config.hltbScoring.overSoftCapRate}`,
+          time: "Скорость прохождения: бонус до +12%, перерасход — штраф до −18% (относительно Main Story)",
           difficulty: config.difficultyMultipliers,
           modifierCap: `${Math.round(config.modifierScoreMultMin * 100)}%–${Math.round(config.modifierScoreMultMax * 100)}% от стака модификаторов`,
         },

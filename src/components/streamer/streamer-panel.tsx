@@ -531,7 +531,7 @@ export function StreamerPanel() {
                             >
                               <span className="block truncate">{game.title}</span>
                               <span className="block text-[11px] text-[#8d7a62]">
-                                {game.mainStoryHours}ч · {game.projectedBaseScore} очков
+                                Main Story {game.mainStoryHours}ч · {game.projectedBaseScore} очков
                               </span>
                             </button>
                           </li>
@@ -605,8 +605,8 @@ export function StreamerPanel() {
                     ) : null}
                     {auctionSearch.missingHltbCount > 0 ? (
                       <p className="mb-3 text-xs text-[#8d7a62]">
-                        Ещё {auctionSearch.missingHltbCount} результат(ов) RAWG скрыто — у них нет
-                        часов прохождения.
+                        Ещё {auctionSearch.missingHltbCount} игр скрыто — для них нет HLTB Main
+                        Story.
                       </p>
                     ) : null}
                     {selectedAuctionGame ? (
@@ -629,13 +629,12 @@ export function StreamerPanel() {
                               {selectedAuctionGame.title}
                             </p>
                             <p className="text-xs text-[#a89070]">
-                              HLTB: {selectedAuctionGame.mainStoryHours}ч · Очки:{" "}
-                              {selectedAuctionGame.projectedBaseScore}
+                              HLTB Main Story: {selectedAuctionGame.mainStoryHours}ч · База:{" "}
+                              {selectedAuctionGame.projectedBaseScore} очков
                             </p>
                             <p className="mt-1 text-[11px] text-[#8d7a62]">
-                              Формула: {selectedAuctionGame.mainStoryHours} ×{" "}
-                              {auctionSearch.pointsPerHour} ={" "}
-                              {selectedAuctionGame.projectedBaseScore} очков
+                              Формула базы: Main Story {selectedAuctionGame.mainStoryHours}ч
+                              (мягкий потолок после {auctionSearch.softCapHours}ч)
                             </p>
                             <p className="mt-1 text-[11px] text-[#8d7a62]">
                               Main+Extra: {selectedAuctionGame.mainExtraHours ?? "—"}ч · 100%:{" "}
